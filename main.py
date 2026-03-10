@@ -55,8 +55,6 @@ def format_gift_text(sender_key: str, recipient_username: str = None) -> str:
     else:
         return f"От {sender_key}"
 
-SIGNATURE_COST = 1
-
 GIFTS = {
     "rocket": {"title": "🚀 Ракета", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rocket.gif"},
     "rose": {"title": "🌹 Роза", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rose.gif"},
@@ -674,36 +672,64 @@ async def successful_payment(message: Message):
     payment = message.successful_payment
     payload = json.loads(payment.invoice_payload)
     buyer_id = message.from_user.id
+    buyer_username = message.from_user.username
     total = payment.total_amount
-    
+
     item_type = payload.get("type")
     item_id = payload.get("id")
     sender_key = payload.get("sender")
-    
-    print(f"💰 {buyer_id}: {item_type}:{item_id}, {total}⭐")
-    
+
+    print(f"💰 {buyer_id} (@{buyer_username}): {item_type}:{item_id}, {total}⭐")
+
     try:
         if item_type == "gift":
             gift = GIFTS[item_id]
-            sender_text = SENDERS.get(sender_key)
+            
+            # Исправлено: используем format_gift_text
+            sender_text = format_gift_text(sender_key, buyer_username)
+            
             await send_real_gift(buyer_id, item_id, sender_text)
-            save_purchase(buyer_id, {"type": "gift", "gift_id": item_id, "paid": total, "sender": sender_key or ""})
-            await message.answer(f"🎉 {gift['title']} отправлен!\n{sender_text or ''}")
-        
+            save_purchase(buyer_id, {
+                "type": "gift",
+                "gift_id": item_id,
+                "paid": total,
+                "sender": sender_key or ""
+            })
+            
+            # Сообщение покупателю
+            msg = f"🎉 {gift['title']} отправлен!"
+            if sender_text:
+                msg += f"\n📝 {sender_text}"
+            await message.answer(msg)
+
         elif item_type == "case":
             case = CASES[item_id]
             won = roll_case(item_id)
-            
+
             if won and won != "nothing":
                 wg = GIFTS[won]
-                await send_real_gift(buyer_id, won, f"🎰 Из {case['title']}!")
-                save_purchase(buyer_id, {"type": "case_win", "case_id": item_id, "gift_id": won, "paid": total})
-                await message.answer(f"🎰 {case['title']}\n\n🎉 {wg['title']}!")
+                
+                case_text = f"Для @{buyer_username} из {case['title']}" if buyer_username else None
+                
+                await send_real_gift(buyer_id, won, case_text)
+                save_purchase(buyer_id, {
+                    "type": "case_win",
+                    "case_id": item_id,
+                    "gift_id": won,
+                    "paid": total
+                })
+                await message.answer(
+                    f"🎰 **{case['title']}**\n\n🎉 {wg['title']}!",
+                    parse_mode=ParseMode.MARKDOWN
+                )
             else:
                 save_purchase(buyer_id, {"type": "case_lose", "case_id": item_id, "paid": total})
-                await message.answer(f"🎰 {case['title']}\n\n😔 Ничего...")
+                await message.answer(
+                    f"🎰 **{case['title']}**\n\n😔 Ничего...",
+                    parse_mode=ParseMode.MARKDOWN
+                )
     except Exception as e:
-        print(f"❌ {e}")
+        print(f"❌ Payment: {e}")
         await message.answer("✅ Оплата прошла!")
 
 
@@ -743,31 +769,47 @@ async def create_invoice(req: InvoiceReq):
     auth = validate_init_data(req.initData)
     if not auth:
         raise HTTPException(401, "Invalid auth")
-    
+
+    buyer_username = auth["user"].get("username", "")
+
     try:
         if req.giftId and req.giftId in GIFTS:
             gift = GIFTS[req.giftId]
             price = gift["price"] + (SIGNATURE_COST if req.sender else 0)
-            desc = SENDERS.get(req.sender, gift["title"]) if req.sender else gift["title"]
             
+            # Исправлено: проверка для list
+            if req.sender and req.sender in SENDERS:
+                desc = format_gift_text(req.sender, buyer_username) or gift["title"]
+            else:
+                desc = gift["title"]
+
             link = await bot.create_invoice_link(
-                title=gift["title"], description=desc,
-                payload=json.dumps({"type": "gift", "id": req.giftId, "sender": req.sender}),
-                currency="XTR", prices=[LabeledPrice(label=gift["title"], amount=price)]
+                title=gift["title"],
+                description=desc,
+                payload=json.dumps({
+                    "type": "gift",
+                    "id": req.giftId,
+                    "sender": req.sender
+                }),
+                currency="XTR",
+                prices=[LabeledPrice(label=gift["title"], amount=price)]
             )
             return {"link": link}
-        
+
         elif req.caseId and req.caseId in CASES:
             case = CASES[req.caseId]
             link = await bot.create_invoice_link(
-                title=case["title"], description="Открой и выиграй!",
+                title=case["title"],
+                description="Открой и выиграй!",
                 payload=json.dumps({"type": "case", "id": req.caseId}),
-                currency="XTR", prices=[LabeledPrice(label=case["title"], amount=case["price"])]
+                currency="XTR",
+                prices=[LabeledPrice(label=case["title"], amount=case["price"])]
             )
             return {"link": link}
-        
+
         raise HTTPException(400, "Not found")
     except Exception as e:
+        print(f"Invoice error: {e}")
         raise HTTPException(500, str(e))
 
 
