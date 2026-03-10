@@ -438,23 +438,86 @@ async def load_telegram_gifts():
     global available_telegram_gifts
     try:
         gifts = await bot.get_available_gifts()
-        print(f"📦 Загружено {len(gifts.gifts)} Telegram подарков")
+        print(f"📦 Загружено {len(gifts.gifts)} Telegram подарков:")
+        
+        # Сохраняем ВСЕ подарки по цене (список, а не один)
+        gifts_by_price = {}
         for gift in gifts.gifts:
-            available_telegram_gifts[gift.star_count] = gift
-
+            price = gift.star_count
+            if price not in gifts_by_price:
+                gifts_by_price[price] = []
+            gifts_by_price[price].append(gift)
+            print(f"   • {gift.id}: {price}⭐")
+        
+        # Сохраняем для быстрого доступа (первый по каждой цене)
+        for price, gift_list in gifts_by_price.items():
+            available_telegram_gifts[price] = gift_list[0]
+        
+        print(f"\n🎯 Маппинг наших подарков:")
+        
+        # Маппим наши подарки
         for gid, gdata in GIFTS.items():
-            cost = gdata["star_cost"]
-            if cost in available_telegram_gifts:
-                GIFTS[gid]["telegram_gift_id"] = available_telegram_gifts[cost].id
-                print(f"  ✓ {gdata['title']} → TG Gift")
+            our_cost = gdata["star_cost"]
+            
+            if our_cost in gifts_by_price:
+                # Берём первый подарок с нужной ценой
+                tg_gift = gifts_by_price[our_cost][0]
+                GIFTS[gid]["telegram_gift_id"] = tg_gift.id
+                print(f"   ✅ {gdata['title']} ({our_cost}⭐) → {tg_gift.id}")
             else:
-                closest = min(available_telegram_gifts.keys(), key=lambda x: abs(x - cost), default=None)
-                if closest:
-                    GIFTS[gid]["telegram_gift_id"] = available_telegram_gifts[closest].id
+                # Ищем ближайший
+                if gifts_by_price:
+                    closest = min(gifts_by_price.keys(), key=lambda x: abs(x - our_cost))
+                    tg_gift = gifts_by_price[closest][0]
+                    GIFTS[gid]["telegram_gift_id"] = tg_gift.id
                     GIFTS[gid]["star_cost"] = closest
-                    print(f"  ~ {gdata['title']} → TG Gift ({closest}⭐)")
+                    print(f"   ⚠️ {gdata['title']} ({our_cost}⭐ → {closest}⭐) → {tg_gift.id}")
+                else:
+                    print(f"   ❌ {gdata['title']} — нет подарков!")
+                    
     except Exception as e:
-        print(f"❌ TG Gifts: {e}")
+        print(f"❌ TG Gifts ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+
+@router.message(Command("tggifts"))
+async def cmd_tggifts(message: Message):
+    """Показать Telegram подарки"""
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    
+    try:
+        gifts = await bot.get_available_gifts()
+        
+        # Группируем по цене
+        by_price = {}
+        for g in gifts.gifts:
+            if g.star_count not in by_price:
+                by_price[g.star_count] = []
+            by_price[g.star_count].append(g.id)
+        
+        text = f"🎁 **Telegram Gifts ({len(gifts.gifts)}):**\n\n"
+        
+        for price in sorted(by_price.keys()):
+            ids = by_price[price]
+            text += f"**{price}⭐:** {len(ids)} шт.\n"
+            for gid in ids[:3]:  # Показываем первые 3
+                text += f"  `{gid}`\n"
+            if len(ids) > 3:
+                text += f"  _...и ещё {len(ids)-3}_\n"
+        
+        text += f"\n**Наши подарки:**\n"
+        for gid, gdata in GIFTS.items():
+            tg_id = gdata.get('telegram_gift_id')
+            cost = gdata.get('star_cost')
+            if tg_id:
+                text += f"✅ {gdata['title']} ({cost}⭐)\n"
+            else:
+                text += f"❌ {gdata['title']} ({cost}⭐) — НЕ ЗАМАПЛЕН\n"
+        
+        await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
 
 
 async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> bool:
