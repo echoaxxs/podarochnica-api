@@ -147,22 +147,6 @@ def get_sheet(name: str):
 # ===== ПАМЯТЬ (фоллбэк) =====
 MEMORY = {"promocodes": {}, "credits": {}, "purchases": {}, "donations": [], "pending_promocodes": {}}
 
-@router.message(Command("testgift"))
-async def cmd_testgift(message: Message):
-    """Тест отправки подарка"""
-    uid = message.from_user.id
-    gift = GIFTS.get("bear")
-    tg_id = gift.get("telegram_gift_id")
-    
-    await message.answer(f"🧪 gift_id: `{tg_id}`\nОтправляю...", parse_mode=ParseMode.MARKDOWN)
-    
-    try:
-        await bot.send_gift(user_id=uid, gift_id=tg_id, text="Тест")
-        await message.answer("✅ Успех!")
-    except Exception as e:
-        await message.answer(f"❌ Ошибка:\n`{e}`", parse_mode=ParseMode.MARKDOWN)
-
-
 # ===== ПРОМОКОДЫ =====
 def get_promocodes() -> dict:
     if not spreadsheet:
@@ -494,6 +478,22 @@ async def load_telegram_gifts():
         print(f"❌ TG Gifts ошибка: {e}")
         import traceback
         traceback.print_exc()
+
+@router.message(Command("testgift"))
+async def cmd_testgift(message: Message):
+    """Тест отправки подарка"""
+    uid = message.from_user.id
+    gift = GIFTS.get("bear")
+    tg_id = gift.get("telegram_gift_id")
+    
+    await message.answer(f"🧪 gift_id: `{tg_id}`\nОтправляю...", parse_mode=ParseMode.MARKDOWN)
+    
+    try:
+        await bot.send_gift(user_id=uid, gift_id=tg_id, text="Тест")
+        await message.answer("✅ Подарок отправлен!")
+    except Exception as e:
+        await message.answer(f"❌ **Ошибка:**\n\n`{type(e).__name__}: {e}`", parse_mode=ParseMode.MARKDOWN)
+
 
 @router.message(Command("tggifts"))
 async def cmd_tggifts(message: Message):
