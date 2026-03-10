@@ -40,10 +40,21 @@ print(f"🔧 SELF_URL: {SELF_URL}")
 print(f"🔧 GOOGLE_SHEET_ID: {'✅' if GOOGLE_SHEET_ID else '❌'}")
 print(f"🔧 GOOGLE_CREDENTIALS: {'✅' if GOOGLE_CREDENTIALS else '❌'}")
 
-SENDERS = {
-    "@echoaxxs": "С любовью от @echoaxxs 💜",
-    "@bogclm": "Подарок от @bogclm ✨"
-}
+# ===== ПОДПИСИ =====
+SENDERS = ["@echoaxxs", "@bogclm"]
+SIGNATURE_COST = 1
+
+
+def format_gift_text(sender_key: str, recipient_username: str = None) -> str:
+    if not sender_key or sender_key not in SENDERS:
+        return None
+    
+    if recipient_username:
+        recipient = recipient_username.lstrip("@")
+        return f"Для @{recipient} от {sender_key}"
+    else:
+        return f"От {sender_key}"
+
 SIGNATURE_COST = 1
 
 GIFTS = {
