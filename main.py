@@ -127,6 +127,9 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 router = Router()
 
+# Подключаем router ОДИН раз здесь
+dp.include_router(router)
+
 
 def validate_init_data(init_data: str):
     try:
@@ -399,7 +402,7 @@ async def successful_payment(message: Message):
 # ===== FastAPI =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    dp.include_router(router)
+    # Запускаем бота
     asyncio.create_task(dp.start_polling(bot))
     yield
 
@@ -521,5 +524,4 @@ async def health():
 
 # ===== ЗАПУСК =====
 if __name__ == "__main__":
-    dp.include_router(router)
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
