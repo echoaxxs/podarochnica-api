@@ -442,7 +442,7 @@ async def load_telegram_gifts():
         
         print(f"✅ Получено {len(gifts.gifts)} подарков от Telegram:")
         
-        # Группируем по цене
+        # Группируем по цене (список подарков для каждой цены)
         gifts_by_price = {}
         for gift in gifts.gifts:
             price = gift.star_count
@@ -458,20 +458,39 @@ async def load_telegram_gifts():
         print(f"\n🎯 Доступные цены: {sorted(gifts_by_price.keys())}")
         print(f"\n🔗 Маппинг наших подарков:")
         
+        # Счётчик использованных подарков для каждой цены
+        used_index = {}
+        
         # Маппим наши подарки на Telegram подарки
         for gid, gdata in GIFTS.items():
             our_cost = gdata["star_cost"]
             
             if our_cost in gifts_by_price:
-                tg_gift = gifts_by_price[our_cost][0]
+                # Получаем индекс для этой цены (начинаем с 0)
+                idx = used_index.get(our_cost, 0)
+                gift_list = gifts_by_price[our_cost]
+                
+                # Берём подарок по индексу (с циклом если подарков меньше чем нужно)
+                tg_gift = gift_list[idx % len(gift_list)]
                 GIFTS[gid]["telegram_gift_id"] = tg_gift.id
+                
+                # Увеличиваем индекс для следующего подарка с такой же ценой
+                used_index[our_cost] = idx + 1
+                
                 print(f"   ✅ {gdata['title']} ({our_cost}⭐) → TG ID: {tg_gift.id}")
             else:
+                # Ищем ближайший по цене
                 if gifts_by_price:
                     closest = min(gifts_by_price.keys(), key=lambda x: abs(x - our_cost))
-                    tg_gift = gifts_by_price[closest][0]
+                    
+                    idx = used_index.get(closest, 0)
+                    gift_list = gifts_by_price[closest]
+                    tg_gift = gift_list[idx % len(gift_list)]
+                    
                     GIFTS[gid]["telegram_gift_id"] = tg_gift.id
                     GIFTS[gid]["star_cost"] = closest
+                    used_index[closest] = idx + 1
+                    
                     print(f"   ⚠️ {gdata['title']} ({our_cost}⭐ → {closest}⭐) → TG ID: {tg_gift.id}")
                 else:
                     print(f"   ❌ {gdata['title']} — НЕ ЗАМАПЛЕН")
