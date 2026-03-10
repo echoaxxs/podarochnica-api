@@ -36,7 +36,7 @@ GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
 
 SENDERS = ["@echoaxxs", "@bogclm"]
-SIGNATURE_COST = 1
+SIGNATURE_COST = 2
 
 GIFTS = {
     "rocket": {"title": "🚀 Ракета", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rocket.gif"},
@@ -52,8 +52,8 @@ CASES = {
         "drops": [
             {"gift_id": "rose", "chance": 0.35},
             {"gift_id": "box", "chance": 0.35},
-            {"gift_id": "rocket", "chance": 0.10},
-            {"gift_id": "nothing", "chance": 0.20},
+            {"gift_id": "rocket", "chance": 0.00},
+            {"gift_id": "nothing", "chance": 0.40},
         ]
     },
     "rich": {
@@ -146,6 +146,21 @@ def get_sheet(name: str):
 
 # ===== ПАМЯТЬ (фоллбэк) =====
 MEMORY = {"promocodes": {}, "credits": {}, "purchases": {}, "donations": [], "pending_promocodes": {}}
+
+@router.message(Command("testgift"))
+async def cmd_testgift(message: Message):
+    """Тест отправки подарка"""
+    uid = message.from_user.id
+    gift = GIFTS.get("bear")
+    tg_id = gift.get("telegram_gift_id")
+    
+    await message.answer(f"🧪 gift_id: `{tg_id}`\nОтправляю...", parse_mode=ParseMode.MARKDOWN)
+    
+    try:
+        await bot.send_gift(user_id=uid, gift_id=tg_id, text="Тест")
+        await message.answer("✅ Успех!")
+    except Exception as e:
+        await message.answer(f"❌ Ошибка:\n`{e}`", parse_mode=ParseMode.MARKDOWN)
 
 
 # ===== ПРОМОКОДЫ =====
