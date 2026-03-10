@@ -413,41 +413,337 @@ async def cmd_gifts(message: Message):
 
 
 @router.message(Command("promocode"))
+# ===== ПРОМОКОДЫ С ЛОГАМИ =====
+
+@router.message(Command("promocode"))
 async def cmd_promocode(message: Message, command: CommandObject):
+    """Активация промокода"""
+    print(f"📩 /promocode от {message.from_user.id}")
+    print(f"   Аргументы: '{command.args}'")
+    
     if not command.args:
-        await message.answer("❌ Использование: /promocode <код>")
+        await message.answer(
+            "❌ Использование: `/promocode КОД`\n"
+            "Пример: `/promocode LUCKY2024`",
+            parse_mode=ParseMode.MARKDOWN
+        )
         return
 
     code = command.args.strip().upper()
     user_id = message.from_user.id
-    promocodes = await get_promocodes()
+    
+    print(f"   Код: '{code}'")
+    
+    # Получаем промокоды
+    try:
+        promocodes = await get_promocodes()
+        print(f"   Промокоды в базе: {list(promocodes.keys())}")
+    except Exception as e:
+        print(f"   ❌ Ошибка Redis: {e}")
+        await message.answer("❌ Ошибка сервера. Попробуй позже.")
+        return
 
     if code not in promocodes:
-        await message.answer("❌ Промокод не найден!")
+        print(f"   ❌ Промокод '{code}' не найден")
+        await message.answer(f"❌ Промокод `{code}` не найден!", parse_mode=ParseMode.MARKDOWN)
         return
 
     promo = promocodes[code]
+    print(f"   Найден: {promo}")
 
-    if user_id in promo.get("used_by", []):
-        await message.answer("⚠️ Уже использован!")
+    # Проверяем использование
+    used_by = promo.get("used_by", [])
+    if user_id in used_by:
+        print(f"   ⚠️ Уже использован пользователем {user_id}")
+        await message.answer("⚠️ Ты уже использовал этот промокод!")
         return
 
-    if promo["uses"] >= promo["max_uses"]:
+    # Проверяем лимит
+    if promo.get("uses", 0) >= promo.get("max_uses", 0):
+        print(f"   ❌ Лимит исчерпан: {promo['uses']}/{promo['max_uses']}")
         await message.answer("❌ Промокод закончился!")
         return
 
-    await add_user_credit(user_id, promo["reward_type"], promo["reward_id"])
+    # Выдаём награду
+    reward_type = promo.get("reward_type")
+    reward_id = promo.get("reward_id")
+    
+    print(f"   Награда: {reward_type}:{reward_id}")
 
-    promo["uses"] += 1
-    promo.setdefault("used_by", []).append(user_id)
-    await save_promocodes(promocodes)
+    try:
+        await add_user_credit(user_id, reward_type, reward_id)
+        print(f"   ✅ Кредит добавлен")
+    except Exception as e:
+        print(f"   ❌ Ошибка добавления кредита: {e}")
+        await message.answer("❌ Ошибка выдачи награды. Попробуй позже.")
+        return
 
-    if promo["reward_type"] == "case":
-        item_title = CASES.get(promo["reward_id"], {}).get("title", promo["reward_id"])
+    # Обновляем статистику промокода
+    promo["uses"] = promo.get("uses", 0) + 1
+    if "used_by" not in promo:
+        promo["used_by"] = []
+    promo["used_by"].append(user_id)
+    
+    try:
+        await save_promocodes(promocodes)
+        print(f"   ✅ Промокод обновлён")
+    except Exception as e:
+        print(f"   ❌ Ошибка сохранения: {e}")
+
+    # Формируем название награды
+    if reward_type == "case":
+        item_title = CASES.get(reward_id, {}).get("title", reward_id)
     else:
-        item_title = GIFTS.get(promo["reward_id"], {}).get("title", promo["reward_id"])
+        item_title = GIFTS.get(reward_id, {}).get("title", reward_id)
 
-    await message.answer(f"✅ Получено: {item_title}")
+    await message.answer(
+        f"✅ **Промокод активирован!**\n\n"
+        f"🎁 Ты получил: {item_title}\n\n"
+        f"Открой WebApp чтобы использовать!",
+        parse_mode=ParseMode.MARKDOWN
+    )
+    print(f"   ✅ Успешно!")
+
+
+@router.message(Command("pr"))
+async def cmd_pr(message: Message, command: CommandObject):
+    """Админ: управление промокодами"""
+    if message.from_user.id not in ADMIN_IDS:
+        print(f"⛔ /pr от не-админа {message.from_user.id}")
+        await message.answer("⛔ Только для админов!")
+        return
+
+    print(f"🔧 /pr от админа {message.from_user.id}")
+    print(f"   Аргументы: '{command.args}'")
+
+    if not command.args:
+        await message.answer(
+            "📝 **Управление промокодами:**\n\n"
+            "**Создать:**\n"
+            "`/pr new КОД тип:id лимит`\n"
+            "Пример: `/pr new LUCKY case:premium 100`\n"
+            "Пример: `/pr new GIFT gift:rocket 50`\n\n"
+            "**Типы:** `case:premium`, `case:rich`, `case:ultra`\n"
+            "**Подарки:** `gift:rocket`, `gift:rose`, `gift:box`, `gift:heart`, `gift:bear`\n\n"
+            "**Список:** `/pr list`\n"
+            "**Удалить:** `/pr delete КОД`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
+    args = command.args.split()
+    action = args[0].lower()
+    
+    print(f"   Действие: {action}")
+
+    if action == "new":
+        if len(args) < 4:
+            await message.answer(
+                "❌ Мало аргументов!\n"
+                "Формат: `/pr new КОД тип:id лимит`\n"
+                "Пример: `/pr new LUCKY case:premium 100`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        code = args[1].upper()
+        reward = args[2]
+        
+        try:
+            max_uses = int(args[3])
+        except ValueError:
+            await message.answer("❌ Лимит должен быть числом!")
+            return
+        
+        if ":" not in reward:
+            await message.answer(
+                "❌ Неверный формат награды!\n"
+                "Нужно: `тип:id`\n"
+                "Пример: `case:premium` или `gift:rocket`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        reward_type, reward_id = reward.split(":", 1)
+        
+        print(f"   Создаём: {code} → {reward_type}:{reward_id} x{max_uses}")
+        
+        # Валидация
+        if reward_type == "case" and reward_id not in CASES:
+            await message.answer(
+                f"❌ Кейс `{reward_id}` не найден!\n"
+                f"Доступные: `{', '.join(CASES.keys())}`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        if reward_type == "gift" and reward_id not in GIFTS:
+            await message.answer(
+                f"❌ Подарок `{reward_id}` не найден!\n"
+                f"Доступные: `{', '.join(GIFTS.keys())}`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        if reward_type not in ("case", "gift"):
+            await message.answer("❌ Тип должен быть `case` или `gift`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        try:
+            promocodes = await get_promocodes()
+            promocodes[code] = {
+                "reward_type": reward_type,
+                "reward_id": reward_id,
+                "max_uses": max_uses,
+                "uses": 0,
+                "used_by": [],
+                "created": datetime.now().isoformat(),
+                "created_by": message.from_user.id
+            }
+            await save_promocodes(promocodes)
+            print(f"   ✅ Промокод создан")
+        except Exception as e:
+            print(f"   ❌ Ошибка: {e}")
+            await message.answer(f"❌ Ошибка: {e}")
+            return
+        
+        # Название награды
+        if reward_type == "case":
+            item_title = CASES[reward_id]["title"]
+        else:
+            item_title = GIFTS[reward_id]["title"]
+        
+        await message.answer(
+            f"✅ **Промокод создан!**\n\n"
+            f"🎟 Код: `{code}`\n"
+            f"🎁 Награда: {item_title}\n"
+            f"👥 Лимит: {max_uses} активаций\n\n"
+            f"Пользователи вводят: `/promocode {code}`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    elif action == "list":
+        try:
+            promocodes = await get_promocodes()
+        except Exception as e:
+            await message.answer(f"❌ Ошибка Redis: {e}")
+            return
+        
+        if not promocodes:
+            await message.answer("📭 Промокодов пока нет.\nСоздай: `/pr new КОД тип:id лимит`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        text = "📋 **Промокоды:**\n\n"
+        for code, promo in promocodes.items():
+            rt = promo.get("reward_type", "?")
+            ri = promo.get("reward_id", "?")
+            
+            if rt == "case":
+                item = CASES.get(ri, {}).get("title", ri)
+            else:
+                item = GIFTS.get(ri, {}).get("title", ri)
+            
+            uses = promo.get("uses", 0)
+            max_u = promo.get("max_uses", 0)
+            
+            text += f"`{code}` → {item}\n"
+            text += f"   📊 {uses}/{max_u} использовано\n\n"
+        
+        await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+
+    elif action == "delete":
+        if len(args) < 2:
+            await message.answer("❌ Укажи код: `/pr delete КОД`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        code = args[1].upper()
+        
+        try:
+            promocodes = await get_promocodes()
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {e}")
+            return
+        
+        if code not in promocodes:
+            await message.answer(f"❌ Промокод `{code}` не найден!", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        del promocodes[code]
+        
+        try:
+            await save_promocodes(promocodes)
+        except Exception as e:
+            await message.answer(f"❌ Ошибка сохранения: {e}")
+            return
+        
+        await message.answer(f"✅ Промокод `{code}` удалён!", parse_mode=ParseMode.MARKDOWN)
+
+    elif action == "info":
+        if len(args) < 2:
+            await message.answer("❌ Укажи код: `/pr info КОД`", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        code = args[1].upper()
+        
+        try:
+            promocodes = await get_promocodes()
+        except Exception as e:
+            await message.answer(f"❌ Ошибка: {e}")
+            return
+        
+        if code not in promocodes:
+            await message.answer(f"❌ Промокод `{code}` не найден!", parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        promo = promocodes[code]
+        used_count = len(promo.get("used_by", []))
+        
+        await message.answer(
+            f"🎟 **Промокод:** `{code}`\n\n"
+            f"🎁 Награда: {promo.get('reward_type')}:{promo.get('reward_id')}\n"
+            f"📊 Использовано: {promo.get('uses', 0)}/{promo.get('max_uses', 0)}\n"
+            f"👥 Уникальных: {used_count}\n"
+            f"📅 Создан: {promo.get('created', '?')[:10]}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    else:
+        await message.answer(
+            f"❌ Неизвестная команда: `{action}`\n"
+            "Доступно: `new`, `list`, `delete`, `info`",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+
+@router.message(Command("testredis"))
+async def cmd_testredis(message: Message):
+    """Тест Redis соединения (для админов)"""
+    if message.from_user.id not in ADMIN_IDS:
+        return
+    
+    await message.answer("🔄 Тестирую Redis...")
+    
+    # Тест записи
+    test_key = "test:connection"
+    test_value = {"time": datetime.now().isoformat(), "test": True}
+    
+    try:
+        await redis_set(test_key, test_value)
+        result = await redis_get(test_key)
+        
+        if result and result.get("test") == True:
+            promocodes = await get_promocodes()
+            await message.answer(
+                f"✅ **Redis работает!**\n\n"
+                f"📝 Записано и прочитано успешно\n"
+                f"🎟 Промокодов в базе: {len(promocodes)}\n"
+                f"📋 Коды: `{', '.join(promocodes.keys()) if promocodes else 'нет'}`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+        else:
+            await message.answer(f"⚠️ Redis ответил, но данные не совпадают:\n{result}")
+    except Exception as e:
+        await message.answer(f"❌ **Ошибка Redis:**\n`{e}`", parse_mode=ParseMode.MARKDOWN)
 
 
 @router.message(Command("mycredits"))
