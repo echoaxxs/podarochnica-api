@@ -24,6 +24,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
+print("=" * 50)
+print("🚀 ВЕРСИЯ 3.0 — ИСПРАВЛЕН MARKDOWN + КОНФЛИКТЫ")
+print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
@@ -37,7 +40,6 @@ ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.
 SENDERS = ["@echoaxxs", "@bogclm"]
 SIGNATURE_COST = 2
 
-# Подарки с telegram_gift_id будут заполнены при старте
 GIFTS = {
     "rocket": {"title": "🚀 Ракета", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rocket.gif"},
     "rose": {"title": "🌹 Роза", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rose.gif"},
@@ -401,7 +403,6 @@ dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-# Хранилище загруженных Telegram подарков
 available_telegram_gifts = {}
 gifts_loaded = False
 
@@ -437,9 +438,6 @@ async def load_telegram_gifts():
         
         if not gifts or not gifts.gifts:
             print("❌ API вернул пустой список подарков!")
-            print("   Возможные причины:")
-            print("   - Бот не имеет доступа к подаркам")
-            print("   - API временно недоступен")
             return False
         
         print(f"✅ Получено {len(gifts.gifts)} подарков от Telegram:")
@@ -465,20 +463,18 @@ async def load_telegram_gifts():
             our_cost = gdata["star_cost"]
             
             if our_cost in gifts_by_price:
-                # Берём первый подарок с нужной ценой
                 tg_gift = gifts_by_price[our_cost][0]
                 GIFTS[gid]["telegram_gift_id"] = tg_gift.id
                 print(f"   ✅ {gdata['title']} ({our_cost}⭐) → TG ID: {tg_gift.id}")
             else:
-                # Ищем ближайший по цене
                 if gifts_by_price:
                     closest = min(gifts_by_price.keys(), key=lambda x: abs(x - our_cost))
                     tg_gift = gifts_by_price[closest][0]
                     GIFTS[gid]["telegram_gift_id"] = tg_gift.id
-                    GIFTS[gid]["star_cost"] = closest  # Обновляем цену
+                    GIFTS[gid]["star_cost"] = closest
                     print(f"   ⚠️ {gdata['title']} ({our_cost}⭐ → {closest}⭐) → TG ID: {tg_gift.id}")
                 else:
-                    print(f"   ❌ {gdata['title']} — НЕ ЗАМАПЛЕН (нет подарков)")
+                    print(f"   ❌ {gdata['title']} — НЕ ЗАМАПЛЕН")
         
         gifts_loaded = True
         print("\n" + "="*50 + "\n")
@@ -492,13 +488,10 @@ async def load_telegram_gifts():
 
 
 async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> tuple[bool, str]:
-    """
-    Отправляет реальный Telegram подарок.
-    Возвращает (успех, сообщение об ошибке или успехе)
-    """
+    """Отправляет реальный Telegram подарок."""
     gift = GIFTS.get(gift_id)
     if not gift:
-        return False, f"Подарок {gift_id} не найден в конфигурации"
+        return False, f"Подарок {gift_id} не найден"
 
     tg_id = gift.get("telegram_gift_id")
     
@@ -506,65 +499,45 @@ async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None)
     print(f"   Наш ID: {gift_id}")
     print(f"   Telegram ID: {tg_id}")
     print(f"   Получатель: {user_id}")
-    print(f"   Текст: {text}")
     
     if not tg_id:
-        error = f"telegram_gift_id не установлен для {gift_id}. Подарки загружены: {gifts_loaded}"
+        error = f"telegram_gift_id не установлен для {gift_id}"
         print(f"   ❌ {error}")
         
-        # Отправляем GIF как fallback с предупреждением
         try:
             await bot.send_animation(
                 chat_id=user_id, 
                 animation=gift["gif_url"], 
-                caption=f"🎁 {gift['title']}\n\n{text or ''}\n\n⚠️ Настоящий подарок временно недоступен"
+                caption=f"🎁 {gift['title']}\n\n{text or ''}\n\n⚠️ Подарок временно недоступен"
             )
-            return False, error
-        except Exception as e2:
-            return False, f"Fallback GIF тоже не отправился: {e2}"
+        except:
+            pass
+        return False, error
 
-    # Пытаемся отправить реальный подарок
     try:
-        print(f"   📤 Вызываем bot.send_gift(user_id={user_id}, gift_id={tg_id})")
-        
+        print(f"   📤 Отправляю...")
         await bot.send_gift(
             user_id=user_id, 
             gift_id=tg_id, 
             text=text or gift["title"]
         )
-        
-        print(f"   ✅ Подарок успешно отправлен!")
+        print(f"   ✅ Успех!")
         return True, "OK"
         
     except Exception as e:
         error_msg = str(e)
-        print(f"   ❌ Ошибка send_gift: {type(e).__name__}: {error_msg}")
+        print(f"   ❌ Ошибка: {error_msg}")
         
-        # Анализируем ошибку
-        if "USER_BOT_INVALID" in error_msg:
-            hint = "Пользователь заблокировал бота или не начал диалог"
-        elif "GIFT_SLUG_INVALID" in error_msg:
-            hint = "Неверный ID подарка. Нужно перезагрузить подарки"
-        elif "BALANCE_TOO_LOW" in error_msg or "not enough" in error_msg.lower():
-            hint = "Недостаточно Stars на балансе бота!"
-        elif "PEER_ID_INVALID" in error_msg:
-            hint = "Неверный user_id"
-        else:
-            hint = "Неизвестная ошибка"
-        
-        print(f"   💡 Подсказка: {hint}")
-        
-        # Отправляем GIF как fallback
         try:
             await bot.send_animation(
                 chat_id=user_id, 
                 animation=gift["gif_url"], 
-                caption=f"🎁 {gift['title']}\n\n{text or ''}\n\n⚠️ Ошибка отправки подарка: {hint}"
+                caption=f"🎁 {gift['title']}\n\n{text or ''}"
             )
         except:
             pass
             
-        return False, f"{error_msg} ({hint})"
+        return False, error_msg
 
 
 def roll_case(case_id: str) -> Optional[str]:
@@ -588,7 +561,7 @@ async def cmd_start(message: Message):
         [InlineKeyboardButton(text="🎁 Открыть подарочницу", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
     await message.answer(
-        "👋 **Привет! Это Подарочница!**\n\n"
+        "👋 <b>Привет! Это Подарочница!</b>\n\n"
         "🎁 Подарки за ⭐ Stars\n"
         "🎰 Кейсы с призами\n"
         "🎟 Промокоды\n\n"
@@ -597,7 +570,7 @@ async def cmd_start(message: Message):
         "/d сумма — поддержать бота\n"
         "/myid — узнать ID",
         reply_markup=kb,
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -606,15 +579,15 @@ async def cmd_myid(message: Message):
     is_admin = "✅ Админ" if message.from_user.id in ADMIN_IDS else "❌ Не админ"
     sheets = "✅" if spreadsheet else "❌"
     await message.answer(
-        f"👤 ID: `{message.from_user.id}`\n🔐 {is_admin}\n📊 Sheets: {sheets}",
-        parse_mode=ParseMode.MARKDOWN
+        f"👤 ID: <code>{message.from_user.id}</code>\n🔐 {is_admin}\n📊 Sheets: {sheets}",
+        parse_mode=ParseMode.HTML
     )
 
 
 @router.message(Command("mycredits"))
 async def cmd_mycredits(message: Message):
     credits = get_user_credits(message.from_user.id)
-    text = "💳 **Кредиты:**\n\n"
+    text = "💳 <b>Кредиты:</b>\n\n"
     has = False
     for cid, amt in credits.get("cases", {}).items():
         if amt > 0:
@@ -626,19 +599,19 @@ async def cmd_mycredits(message: Message):
             has = True
     if not has:
         text += "Пусто!"
-    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await message.answer(text, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("d"))
 async def cmd_donate(message: Message, command: CommandObject):
     if not command.args:
         await message.answer(
-            "💝 **Поддержать бота:**\n\n"
-            "`/d 10` — задонатить 10 ⭐\n"
-            "`/d 50` — задонатить 50 ⭐\n"
-            "`/d 100` — задонатить 100 ⭐\n\n"
+            "💝 <b>Поддержать бота:</b>\n\n"
+            "<code>/d 10</code> — задонатить 10 ⭐\n"
+            "<code>/d 50</code> — задонатить 50 ⭐\n"
+            "<code>/d 100</code> — задонатить 100 ⭐\n\n"
             "Минимум: 1 ⭐",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
         return
     
@@ -651,7 +624,7 @@ async def cmd_donate(message: Message, command: CommandObject):
             await message.answer("❌ Максимум 10000 ⭐")
             return
     except ValueError:
-        await message.answer("❌ Укажи число: `/d 10`", parse_mode=ParseMode.MARKDOWN)
+        await message.answer("❌ Укажи число: <code>/d 10</code>", parse_mode=ParseMode.HTML)
         return
     
     try:
@@ -668,9 +641,9 @@ async def cmd_donate(message: Message, command: CommandObject):
         ])
         
         await message.answer(
-            f"💝 **Донат {amount} ⭐**\n\nСпасибо за поддержку!",
+            f"💝 <b>Донат {amount} ⭐</b>\n\nСпасибо за поддержку!",
             reply_markup=kb,
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
     except Exception as e:
         print(f"❌ Donate error: {e}")
@@ -681,25 +654,21 @@ async def cmd_donate(message: Message, command: CommandObject):
 @router.message(Command("giftcheck"))
 async def cmd_giftcheck(message: Message):
     """Полная диагностика системы подарков"""
-    uid = message.from_user.id
+    text = "🔍 <b>Диагностика подарков:</b>\n\n"
     
-    text = "🔍 **Диагностика подарков:**\n\n"
-    
-    # Статус загрузки
     text += f"📦 Подарки загружены: {'✅' if gifts_loaded else '❌'}\n"
-    text += f"🔢 Доступно TG подарков: {sum(len(v) for v in available_telegram_gifts.values())}\n\n"
+    text += f"🔢 TG подарков: {sum(len(v) for v in available_telegram_gifts.values())}\n\n"
     
-    # Маппинг
-    text += "**Маппинг:**\n"
+    text += "<b>Маппинг:</b>\n"
     for gid, gdata in GIFTS.items():
         tg_id = gdata.get("telegram_gift_id")
         status = "✅" if tg_id else "❌"
-        text += f"{status} {gdata['title']}: `{tg_id or 'НЕТ'}`\n"
+        tg_id_str = str(tg_id) if tg_id else "НЕТ"
+        text += f"{status} {gdata['title']}: <code>{tg_id_str}</code>\n"
     
-    # Доступные цены
-    text += f"\n**Цены TG:** {sorted(available_telegram_gifts.keys())}\n"
+    text += f"\n<b>Цены TG:</b> {sorted(available_telegram_gifts.keys())}"
     
-    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+    await message.answer(text, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("testgift"))
@@ -707,44 +676,41 @@ async def cmd_testgift(message: Message, command: CommandObject):
     """Тест отправки подарка себе"""
     uid = message.from_user.id
     
-    # Какой подарок тестировать
     gift_id = command.args.strip() if command.args else "bear"
     
     if gift_id not in GIFTS:
         await message.answer(
-            f"❌ Подарок `{gift_id}` не найден\n\n"
+            f"❌ Подарок <code>{gift_id}</code> не найден\n\n"
             f"Доступные: {', '.join(GIFTS.keys())}",
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
         return
     
     gift = GIFTS[gift_id]
     tg_id = gift.get("telegram_gift_id")
+    tg_id_str = str(tg_id) if tg_id else "НЕТ"
     
     await message.answer(
-        f"🧪 **Тест отправки:**\n\n"
+        f"🧪 <b>Тест отправки:</b>\n\n"
         f"Подарок: {gift['title']}\n"
-        f"Наш ID: `{gift_id}`\n"
-        f"TG ID: `{tg_id or 'НЕТ'}`\n"
-        f"Получатель: `{uid}`\n\n"
+        f"Наш ID: <code>{gift_id}</code>\n"
+        f"TG ID: <code>{tg_id_str}</code>\n"
+        f"Получатель: <code>{uid}</code>\n\n"
         f"Отправляю...",
-        parse_mode=ParseMode.MARKDOWN
+        parse_mode=ParseMode.HTML
     )
     
     success, error = await send_real_gift(uid, gift_id, "Тестовый подарок")
     
     if success:
-        await message.answer("✅ **Подарок успешно отправлен!**", parse_mode=ParseMode.MARKDOWN)
+        await message.answer("✅ <b>Подарок успешно отправлен!</b>", parse_mode=ParseMode.HTML)
     else:
-        await message.answer(
-            f"❌ **Ошибка:**\n\n`{error}`",
-            parse_mode=ParseMode.MARKDOWN
-        )
+        await message.answer(f"❌ <b>Ошибка:</b>\n\n<code>{error}</code>", parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("reloadgifts"))
 async def cmd_reloadgifts(message: Message):
-    """Перезагрузить подарки из Telegram API"""
+    """Перезагрузить подарки"""
     if message.from_user.id not in ADMIN_IDS:
         return
     
@@ -753,11 +719,12 @@ async def cmd_reloadgifts(message: Message):
     success = await load_telegram_gifts()
     
     if success:
-        text = "✅ **Подарки перезагружены!**\n\n"
+        text = "✅ <b>Подарки перезагружены!</b>\n\n"
         for gid, gdata in GIFTS.items():
             tg_id = gdata.get("telegram_gift_id")
-            text += f"{'✅' if tg_id else '❌'} {gdata['title']}: `{tg_id}`\n"
-        await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+            tg_id_str = str(tg_id) if tg_id else "НЕТ"
+            text += f"{'✅' if tg_id else '❌'} {gdata['title']}: <code>{tg_id_str}</code>\n"
+        await message.answer(text, parse_mode=ParseMode.HTML)
     else:
         await message.answer("❌ Ошибка загрузки. Смотри логи.")
 
@@ -771,7 +738,7 @@ async def cmd_tggifts(message: Message):
     try:
         gifts = await bot.get_available_gifts()
         
-        text = f"🎁 **Telegram Gifts ({len(gifts.gifts)}):**\n\n"
+        text = f"🎁 <b>Telegram Gifts ({len(gifts.gifts)}):</b>\n\n"
         
         by_price = {}
         for g in gifts.gifts:
@@ -781,13 +748,13 @@ async def cmd_tggifts(message: Message):
         
         for price in sorted(by_price.keys()):
             ids = by_price[price]
-            text += f"**{price}⭐:** {len(ids)} шт.\n"
+            text += f"<b>{price}⭐:</b> {len(ids)} шт.\n"
             for gid in ids[:3]:
-                text += f"  `{gid}`\n"
+                text += f"  <code>{gid}</code>\n"
             if len(ids) > 3:
-                text += f"  _...и ещё {len(ids)-3}_\n"
+                text += f"  <i>...и ещё {len(ids)-3}</i>\n"
         
-        await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+        await message.answer(text, parse_mode=ParseMode.HTML)
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
 
@@ -800,14 +767,14 @@ async def cmd_promocode(message: Message, command: CommandObject):
     print(f"🎟 /promocode от {uid}, args: '{command.args}'")
 
     if not command.args:
-        await message.answer("❌ Напиши: `/promocode КОД`", parse_mode=ParseMode.MARKDOWN)
+        await message.answer("❌ Напиши: <code>/promocode КОД</code>", parse_mode=ParseMode.HTML)
         return
 
     code = command.args.strip().upper()
     promocodes = get_promocodes()
 
     if code not in promocodes:
-        await message.answer(f"❌ Промокод `{code}` не найден!", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"❌ Промокод <code>{code}</code> не найден!", parse_mode=ParseMode.HTML)
         return
 
     promo = promocodes[code]
@@ -842,16 +809,15 @@ async def cmd_promocode(message: Message, command: CommandObject):
             
             if success:
                 await message.answer(
-                    f"✅ **Промокод активирован!**\n\n"
+                    f"✅ <b>Промокод активирован!</b>\n\n"
                     f"🎁 Тебе отправлен: {gift['title']}!",
-                    parse_mode=ParseMode.MARKDOWN
+                    parse_mode=ParseMode.HTML
                 )
             else:
                 await message.answer(
-                    f"⚠️ **Промокод активирован, но подарок не доставлен**\n\n"
-                    f"Ошибка: {error}\n\n"
-                    f"Обратись к админу.",
-                    parse_mode=ParseMode.MARKDOWN
+                    f"⚠️ <b>Промокод активирован, но подарок не доставлен</b>\n\n"
+                    f"Ошибка: {error}",
+                    parse_mode=ParseMode.HTML
                 )
             return
     
@@ -863,7 +829,7 @@ async def cmd_promocode(message: Message, command: CommandObject):
     save_promocode(code, promo)
 
     title = CASES.get(ri, {}).get("title", ri) if rt == "case" else GIFTS.get(ri, {}).get("title", ri)
-    await message.answer(f"✅ **Активировано!**\n\n🎁 Получено: {title}", parse_mode=ParseMode.MARKDOWN)
+    await message.answer(f"✅ <b>Активировано!</b>\n\n🎁 Получено: {title}", parse_mode=ParseMode.HTML)
 
 
 # ===== АДМИН КОМАНДЫ =====
@@ -871,23 +837,23 @@ async def cmd_promocode(message: Message, command: CommandObject):
 async def cmd_pr(message: Message, command: CommandObject):
     uid = message.from_user.id
     if uid not in ADMIN_IDS:
-        await message.answer(f"⛔ Не админ!\nID: `{uid}`", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"⛔ Не админ!\nID: <code>{uid}</code>", parse_mode=ParseMode.HTML)
         return
 
     if not command.args:
         await message.answer(
-            "📝 **Промокоды:**\n\n"
-            "**Создать:**\n"
-            "`/pr new КОД тип:id кол-во`\n\n"
-            "**Примеры:**\n"
-            "`/pr new FREEBEAR gift:bear 5`\n"
-            "`/pr new FREECASE case:premium 10`\n\n"
-            "**Типы:**\n"
-            "🎁 `gift:` rocket/rose/box/heart/bear\n"
-            "📦 `case:` premium/rich/ultra\n\n"
-            "`/pr list` — список\n"
-            "`/pr delete КОД`",
-            parse_mode=ParseMode.MARKDOWN
+            "📝 <b>Промокоды:</b>\n\n"
+            "<b>Создать:</b>\n"
+            "<code>/pr new КОД тип:id кол-во</code>\n\n"
+            "<b>Примеры:</b>\n"
+            "<code>/pr new FREEBEAR gift:bear 5</code>\n"
+            "<code>/pr new FREECASE case:premium 10</code>\n\n"
+            "<b>Типы:</b>\n"
+            "🎁 gift: rocket/rose/box/heart/bear\n"
+            "📦 case: premium/rich/ultra\n\n"
+            "<code>/pr list</code> — список\n"
+            "<code>/pr delete КОД</code>",
+            parse_mode=ParseMode.HTML
         )
         return
 
@@ -899,7 +865,7 @@ async def cmd_pr(message: Message, command: CommandObject):
         try:
             reward_type, reward_id = args[2].split(":", 1)
         except:
-            await message.answer("❌ Формат: `тип:id`", parse_mode=ParseMode.MARKDOWN)
+            await message.answer("❌ Формат: <code>тип:id</code>", parse_mode=ParseMode.HTML)
             return
 
         try:
@@ -913,11 +879,11 @@ async def cmd_pr(message: Message, command: CommandObject):
             return
 
         if reward_type == "case" and reward_id not in CASES:
-            await message.answer(f"❌ Нет кейса `{reward_id}`", parse_mode=ParseMode.MARKDOWN)
+            await message.answer(f"❌ Нет кейса <code>{reward_id}</code>", parse_mode=ParseMode.HTML)
             return
 
         if reward_type == "gift" and reward_id not in GIFTS:
-            await message.answer(f"❌ Нет подарка `{reward_id}`", parse_mode=ParseMode.MARKDOWN)
+            await message.answer(f"❌ Нет подарка <code>{reward_id}</code>", parse_mode=ParseMode.HTML)
             return
 
         # Для подарков — нужна оплата
@@ -955,12 +921,12 @@ async def cmd_pr(message: Message, command: CommandObject):
                 ])
                 
                 await message.answer(
-                    f"🎟 **Промокод {code}**\n\n"
+                    f"🎟 <b>Промокод {code}</b>\n\n"
                     f"🎁 {max_uses}× {gift['title']}\n"
                     f"💰 Стоимость: {total_cost} ⭐\n\n"
                     f"Оплати чтобы активировать:",
                     reply_markup=kb,
-                    parse_mode=ParseMode.MARKDOWN
+                    parse_mode=ParseMode.HTML
                 )
             except Exception as e:
                 print(f"❌ Invoice error: {e}")
@@ -982,8 +948,8 @@ async def cmd_pr(message: Message, command: CommandObject):
 
         title = CASES.get(reward_id, {}).get("title", reward_id)
         await message.answer(
-            f"✅ **Создан!**\n\n🎟 `{code}` → {title} (x{max_uses})\n\nЮзеры: `/promocode {code}`",
-            parse_mode=ParseMode.MARKDOWN
+            f"✅ <b>Создан!</b>\n\n🎟 <code>{code}</code> → {title} (x{max_uses})\n\nЮзеры: <code>/promocode {code}</code>",
+            parse_mode=ParseMode.HTML
         )
 
     elif action == "list":
@@ -991,16 +957,16 @@ async def cmd_pr(message: Message, command: CommandObject):
         if not promocodes:
             await message.answer("📭 Пусто")
             return
-        text = "📋 **Промокоды:**\n\n"
+        text = "📋 <b>Промокоды:</b>\n\n"
         for c, p in promocodes.items():
             paid_status = "✅" if p.get("paid", False) else "❌ не оплачен"
-            text += f"`{c}` — {p.get('uses', 0)}/{p.get('max_uses', 0)} {paid_status}\n"
-        await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+            text += f"<code>{c}</code> — {p.get('uses', 0)}/{p.get('max_uses', 0)} {paid_status}\n"
+        await message.answer(text, parse_mode=ParseMode.HTML)
 
     elif action == "delete" and len(args) >= 2:
         code = args[1].upper()
         delete_promocode(code)
-        await message.answer(f"✅ `{code}` удалён", parse_mode=ParseMode.MARKDOWN)
+        await message.answer(f"✅ <code>{code}</code> удалён", parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("ping"))
@@ -1008,14 +974,13 @@ async def cmd_ping(message: Message):
     sheets = "✅" if spreadsheet else "❌"
     promos = len(get_promocodes())
     gifts_status = "✅" if gifts_loaded else "❌"
-    
     mapped = sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
     
     await message.answer(
         f"🏓 Pong!\n"
         f"📊 Sheets: {sheets}\n"
         f"🎟 Промо: {promos}\n"
-        f"🎁 Подарки загружены: {gifts_status}\n"
+        f"🎁 Подарки: {gifts_status}\n"
         f"🔗 Замаплено: {mapped}/{len(GIFTS)}\n"
         f"👥 Админы: {len(ADMIN_IDS)}"
     )
@@ -1026,17 +991,19 @@ async def cmd_debug(message: Message):
     if message.from_user.id not in ADMIN_IDS:
         return
     
-    await message.answer(
-        f"🔧 **Debug:**\n\n"
-        f"WEBAPP: `{WEBAPP_URL}`\n"
-        f"ADMINS: `{ADMIN_IDS}`\n"
-        f"Sheets: {'✅' if spreadsheet else '❌'}\n"
-        f"Gifts loaded: {gifts_loaded}\n"
-        f"Available prices: {sorted(available_telegram_gifts.keys())}\n\n"
-        f"**Gift mapping:**\n" + 
-        "\n".join(f"{g['title']}: `{g.get('telegram_gift_id')}`" for g in GIFTS.values()),
-        parse_mode=ParseMode.MARKDOWN
-    )
+    text = f"🔧 <b>Debug:</b>\n\n"
+    text += f"WEBAPP: <code>{WEBAPP_URL}</code>\n"
+    text += f"ADMINS: <code>{ADMIN_IDS}</code>\n"
+    text += f"Sheets: {'✅' if spreadsheet else '❌'}\n"
+    text += f"Gifts loaded: {gifts_loaded}\n"
+    text += f"Prices: {sorted(available_telegram_gifts.keys())}\n\n"
+    text += "<b>Mapping:</b>\n"
+    for gid, gdata in GIFTS.items():
+        tg_id = gdata.get('telegram_gift_id')
+        tg_str = str(tg_id) if tg_id else "НЕТ"
+        text += f"{gdata['title']}: <code>{tg_str}</code>\n"
+    
+    await message.answer(text, parse_mode=ParseMode.HTML)
 
 
 # ===== ОПЛАТА =====
@@ -1062,8 +1029,8 @@ async def successful_payment(message: Message):
         if item_type == "donate":
             save_donation(buyer_id, buyer_username, total)
             await message.answer(
-                f"💝 **Спасибо за донат {total} ⭐!**\n\nТы лучший! 🙏",
-                parse_mode=ParseMode.MARKDOWN
+                f"💝 <b>Спасибо за донат {total} ⭐!</b>\n\nТы лучший! 🙏",
+                parse_mode=ParseMode.HTML
             )
             
             for admin_id in ADMIN_IDS:
@@ -1088,10 +1055,10 @@ async def successful_payment(message: Message):
                 
                 gift = GIFTS.get(pending["reward_id"], {})
                 await message.answer(
-                    f"✅ **Промокод `{code}` оплачен!**\n\n"
+                    f"✅ <b>Промокод {code} оплачен!</b>\n\n"
                     f"🎁 {pending['max_uses']}× {gift.get('title', pending['reward_id'])}\n\n"
-                    f"Раздавай: `/promocode {code}`",
-                    parse_mode=ParseMode.MARKDOWN
+                    f"Раздавай: <code>/promocode {code}</code>",
+                    parse_mode=ParseMode.HTML
                 )
             else:
                 await message.answer("✅ Оплата прошла, но промокод не найден.")
@@ -1124,9 +1091,7 @@ async def successful_payment(message: Message):
                 await message.answer(msg)
             else:
                 await message.answer(
-                    f"⚠️ Оплата прошла, но подарок не доставлен.\n\n"
-                    f"Ошибка: {error}\n\n"
-                    f"Обратись в поддержку с этим сообщением."
+                    f"⚠️ Оплата прошла, но подарок не доставлен.\n\nОшибка: {error}"
                 )
             return
 
@@ -1154,21 +1119,21 @@ async def successful_payment(message: Message):
                 
                 if success:
                     await message.answer(
-                        f"🎰 **{case['title']}**\n\n🎉 {wg['title']} отправлен!",
-                        parse_mode=ParseMode.MARKDOWN
+                        f"🎰 <b>{case['title']}</b>\n\n🎉 {wg['title']} отправлен!",
+                        parse_mode=ParseMode.HTML
                     )
                 else:
                     await message.answer(
-                        f"🎰 **{case['title']}**\n\n"
+                        f"🎰 <b>{case['title']}</b>\n\n"
                         f"🎉 Выпало: {wg['title']}!\n"
-                        f"⚠️ Но не удалось отправить: {error}",
-                        parse_mode=ParseMode.MARKDOWN
+                        f"⚠️ Но не удалось отправить",
+                        parse_mode=ParseMode.HTML
                     )
             else:
                 save_purchase(buyer_id, {"type": "case_lose", "case_id": item_id, "paid": total})
                 await message.answer(
-                    f"🎰 **{case['title']}**\n\n😔 Ничего...",
-                    parse_mode=ParseMode.MARKDOWN
+                    f"🎰 <b>{case['title']}</b>\n\n😔 Ничего...",
+                    parse_mode=ParseMode.HTML
                 )
             return
             
@@ -1176,27 +1141,21 @@ async def successful_payment(message: Message):
         print(f"❌ Payment error: {e}")
         import traceback
         traceback.print_exc()
-        await message.answer(f"✅ Оплата прошла!\n\n⚠️ Ошибка обработки: {e}")
+        await message.answer(f"✅ Оплата прошла!\n\n⚠️ Ошибка: {e}")
 
 
 # ===== FastAPI =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n" + "="*60)
-    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ")
+    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ v3.0")
     print("="*60)
-    print(f"🔧 BOT_TOKEN: {'✅ установлен' if BOT_TOKEN else '❌ НЕТ!'}")
+    print(f"🔧 BOT_TOKEN: {'✅' if BOT_TOKEN else '❌'}")
     print(f"🔧 WEBAPP_URL: {WEBAPP_URL}")
     print(f"🔧 ADMIN_IDS: {ADMIN_IDS}")
-    print(f"🔧 SELF_URL: {SELF_URL or 'не задан'}")
-    print(f"🔧 Sheets: {'✅' if GOOGLE_SHEET_ID else '❌'}")
 
     init_google_sheets()
-    
-    # Загружаем подарки
-    gifts_ok = await load_telegram_gifts()
-    if not gifts_ok:
-        print("⚠️ ВНИМАНИЕ: Подарки не загружены! Будут отправляться GIF-заглушки.")
+    await load_telegram_gifts()
 
     print("⏳ Ждём 3 сек...")
     await asyncio.sleep(3)
@@ -1297,10 +1256,9 @@ async def api_use_credit(req: UseCreditReq):
 @app.get("/")
 async def root():
     return {
-        "app": "Подарочница", 
+        "app": "Подарочница v3.0", 
         "status": "running",
-        "gifts_loaded": gifts_loaded,
-        "mapped_gifts": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
+        "gifts_loaded": gifts_loaded
     }
 
 
