@@ -9,7 +9,7 @@ import gspread
 from datetime import datetime
 from urllib.parse import parse_qsl
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import (
@@ -25,7 +25,7 @@ from pydantic import BaseModel
 import uvicorn
 
 print("=" * 50)
-print("🚀 ВЕРСИЯ 4.0 — ТРИ ПОДПИСИ + ФИКСЫ")
+print("🚀 ВЕРСИЯ 5.0 — СИНХРОНИЗАЦИЯ + МУЛЬТИПЛИКАТОРЫ")
 print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
@@ -44,43 +44,146 @@ SIGNATURE_COSTS = {
     "@bogclm и @echoaxxs": 5,
 }
 
+# ===== ПОДАРКИ (СИНХРОНИЗИРОВАНО С САЙТОМ) =====
 GIFTS = {
-    "rocket": {"title": "🚀 Ракета", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rocket.gif"},
-    "rose": {"title": "🌹 Роза", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rose.gif"},
-    "box": {"title": "🎁 Подарок", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/gift.gif"},
-    "heart": {"title": "❤️ Сердце", "price": 15, "star_cost": 15, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/heart.gif"},
-    "bear": {"title": "🧸 Мишка", "price": 15, "star_cost": 15, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/bear.gif"},
+    # Премиум (100⭐)
+    "brilliant_ring": {
+        "title": "💍 Колечко",
+        "price": 100,
+        "star_cost": 100,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/brilliant_ring.gif"
+    },
+    "heroic_cup": {
+        "title": "🏆 Кубок",
+        "price": 100,
+        "star_cost": 100,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/heroic_cup.gif"
+    },
+    "diamond": {
+        "title": "💎 Алмаз",
+        "price": 100,
+        "star_cost": 100,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/diamond.gif"
+    },
+    # Средние (50⭐)
+    "flowers_bouquet": {
+        "title": "💐 Букет цветов",
+        "price": 50,
+        "star_cost": 50,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/bouquet_flowers.gif"
+    },
+    "cupcake": {
+        "title": "🧁 Тортик",
+        "price": 50,
+        "star_cost": 50,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/cupcake.gif"
+    },
+    "wine": {
+        "title": "🍷 Вино",
+        "price": 50,
+        "star_cost": 50,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/wine.gif"
+    },
+    "rocket": {
+        "title": "🚀 Ракета",
+        "price": 50,
+        "star_cost": 50,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/rocket.gif"
+    },
+    # Базовые (25⭐)
+    "rose": {
+        "title": "🌹 Роза",
+        "price": 25,
+        "star_cost": 25,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/rose.gif"
+    },
+    "box": {
+        "title": "🎁 Подарок",
+        "price": 25,
+        "star_cost": 25,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/gift.gif"
+    },
+    # Простые (15⭐)
+    "heart": {
+        "title": "❤️ Сердце",
+        "price": 15,
+        "star_cost": 15,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/heart.gif"
+    },
+    "bear": {
+        "title": "🧸 Мишка",
+        "price": 15,
+        "star_cost": 15,
+        "telegram_gift_id": None,
+        "gif_url": "https://podarochnica.pages.dev/bear.gif"
+    },
 }
 
+# ===== КЕЙСЫ (СИНХРОНИЗИРОВАНО С САЙТОМ) =====
 CASES = {
+    "weekly": {
+        "title": "📦 Еженедельный кейс",
+        "price": 0,
+        "drops": [
+            {"gift_id": "rose", "chance": 0.00},
+            {"gift_id": "box", "chance": 0.00},
+            {"gift_id": "heart", "chance": 0.00},
+            {"gift_id": "bear", "chance": 0.00},
+            {"gift_id": "nothing", "chance": 1.00},
+        ],
+        "multiplier": None  # Нет мультипликатора
+    },
     "premium": {
-        "title": "💎 Премиум кейс", "price": 30,
+        "title": "💎 Премиум кейс",
+        "price": 30,
         "drops": [
             {"gift_id": "rose", "chance": 0.35},
             {"gift_id": "box", "chance": 0.35},
             {"gift_id": "rocket", "chance": 0.00},
-            {"gift_id": "nothing", "chance": 0.40},
-        ]
+            {"gift_id": "nothing", "chance": 0.30},
+        ],
+        "multiplier": None  # Нет мультипликатора
     },
     "rich": {
-        "title": "💰 Кейс Богач", "price": 100,
+        "title": "💰 Кейс Богач",
+        "price": 100,
         "drops": [
-            {"gift_id": "rocket", "chance": 0.30},
-            {"gift_id": "rose", "chance": 0.25},
-            {"gift_id": "box", "chance": 0.25},
-            {"gift_id": "heart", "chance": 0.10},
-            {"gift_id": "nothing", "chance": 0.10},
-        ]
+            {"gift_id": "rose", "chance": 0.30},
+            {"gift_id": "box", "chance": 0.30},
+            {"gift_id": "brilliant_ring", "chance": 0.10},
+            {"gift_id": "rocket", "chance": 0.15},
+            {"gift_id": "nothing", "chance": 0.15},
+        ],
+        "multiplier": None  # Нет мультипликатора
     },
     "ultra": {
-        "title": "🔥 Ультра кейс", "price": 500,
+        "title": "🔥 Ультра кейс",
+        "price": 500,
         "drops": [
-            {"gift_id": "rocket", "chance": 0.50},
-            {"gift_id": "rose", "chance": 0.20},
-            {"gift_id": "box", "chance": 0.20},
-            {"gift_id": "heart", "chance": 0.05},
+            {"gift_id": "brilliant_ring", "chance": 0.35},
+            {"gift_id": "diamond", "chance": 0.30},
+            {"gift_id": "heroic_cup", "chance": 0.30},
             {"gift_id": "nothing", "chance": 0.05},
-        ]
+        ],
+        # Мультипликатор для Ультра кейса!
+        "multiplier": {
+            "enabled": True,
+            "chances": [
+                {"count": 1, "chance": 0.70},  # 70% - 1 подарок
+                {"count": 2, "chance": 0.22},  # 22% - 2 подарка
+                {"count": 3, "chance": 0.08},  # 8% - 3 подарка (ДЖЕКПОТ!)
+            ]
+        }
     },
 }
 
@@ -495,7 +598,7 @@ async def load_telegram_gifts():
         return False
 
 
-async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> tuple[bool, str]:
+async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> Tuple[bool, str]:
     gift = GIFTS.get(gift_id)
     if not gift:
         return False, f"Подарок {gift_id} не найден"
@@ -562,17 +665,92 @@ async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None)
         return False, hint
 
 
-def roll_case(case_id: str) -> Optional[str]:
+def roll_case(case_id: str) -> List[str]:
+    """
+    Крутит кейс и возвращает список выигранных подарков.
+    Для обычных кейсов - список из 1 элемента.
+    Для Ультра кейса с мультипликатором - может быть 1-3 подарка.
+    """
     case = CASES.get(case_id)
     if not case:
-        return None
-    roll = random.random()
-    cumulative = 0
-    for drop in case["drops"]:
-        cumulative += drop["chance"]
-        if roll < cumulative:
-            return drop["gift_id"]
-    return "nothing"
+        return []
+    
+    # Определяем количество подарков (мультипликатор)
+    multiplier = case.get("multiplier")
+    gift_count = 1
+    
+    if multiplier and multiplier.get("enabled"):
+        roll_multi = random.random()
+        cumulative = 0
+        for mult_option in multiplier["chances"]:
+            cumulative += mult_option["chance"]
+            if roll_multi < cumulative:
+                gift_count = mult_option["count"]
+                break
+        print(f"   🎰 Мультипликатор: x{gift_count}")
+    
+    # Крутим подарки
+    won_gifts = []
+    
+    for i in range(gift_count):
+        roll = random.random()
+        cumulative = 0
+        won = "nothing"
+        
+        for drop in case["drops"]:
+            cumulative += drop["chance"]
+            if roll < cumulative:
+                won = drop["gift_id"]
+                break
+        
+        # Если выпало "nothing" при мультипликаторе > 1, перекручиваем
+        # (чтобы не было обидно получить x3 и одно "ничего")
+        if won == "nothing" and gift_count > 1:
+            # Пробуем ещё раз, исключая nothing
+            non_nothing_drops = [d for d in case["drops"] if d["gift_id"] != "nothing"]
+            if non_nothing_drops:
+                total_chance = sum(d["chance"] for d in non_nothing_drops)
+                roll2 = random.random() * total_chance
+                cumulative2 = 0
+                for drop in non_nothing_drops:
+                    cumulative2 += drop["chance"]
+                    if roll2 < cumulative2:
+                        won = drop["gift_id"]
+                        break
+        
+        if won != "nothing":
+            won_gifts.append(won)
+    
+    # Если все попытки вернули nothing
+    if not won_gifts:
+        return ["nothing"]
+    
+    return won_gifts
+
+
+def format_multi_win(gifts: List[str]) -> str:
+    """Форматирует выигрыш с мультипликатором"""
+    if len(gifts) == 1:
+        if gifts[0] == "nothing":
+            return "😔 Ничего не выпало..."
+        gift = GIFTS.get(gifts[0], {})
+        return f"🎉 Выпало: {gift.get('title', gifts[0])}!"
+    
+    # Считаем одинаковые подарки
+    counts = {}
+    for g in gifts:
+        counts[g] = counts.get(g, 0) + 1
+    
+    parts = []
+    for gift_id, count in counts.items():
+        gift = GIFTS.get(gift_id, {})
+        title = gift.get('title', gift_id)
+        if count > 1:
+            parts.append(f"{title} x{count}")
+        else:
+            parts.append(title)
+    
+    return f"🎉🎉🎉 ДЖЕКПОТ x{len(gifts)}! 🎉🎉🎉\n\n" + "\n".join(f"• {p}" for p in parts)
 
 
 # ===== КОМАНДЫ =====
@@ -586,6 +764,7 @@ async def cmd_start(message: Message):
         "👋 <b>Привет! Это Подарочница!</b>\n\n"
         "🎁 Подарки за ⭐ Stars\n"
         "🎰 Кейсы с призами\n"
+        "🔥 Ультра кейс с мультипликатором x3!\n"
         "🎟 Промокоды\n\n"
         "/promocode КОД — активировать\n"
         "/mycredits — кредиты\n"
@@ -678,13 +857,14 @@ async def cmd_giftcheck(message: Message):
     text = "🔍 <b>Диагностика подарков:</b>\n\n"
 
     text += f"📦 Подарки загружены: {'✅' if gifts_loaded else '❌'}\n"
-    text += f"🔢 TG подарков: {sum(len(v) for v in available_telegram_gifts.values())}\n\n"
+    text += f"🔢 TG подарков: {sum(len(v) for v in available_telegram_gifts.values())}\n"
+    text += f"🎁 Наших подарков: {len(GIFTS)}\n\n"
 
     text += "<b>Маппинг:</b>\n"
     for gid, gdata in GIFTS.items():
         tg_id = gdata.get("telegram_gift_id")
         status = "✅" if tg_id else "❌"
-        tg_id_str = str(tg_id) if tg_id else "НЕТ"
+        tg_id_str = str(tg_id)[:8] + "..." if tg_id and len(str(tg_id)) > 8 else str(tg_id) if tg_id else "НЕТ"
         text += f"{status} {gdata['title']}: <code>{tg_id_str}</code>\n"
 
     text += f"\n<b>Цены TG:</b> {sorted(available_telegram_gifts.keys())}"
@@ -728,6 +908,30 @@ async def cmd_testgift(message: Message, command: CommandObject):
         await message.answer(f"❌ <b>Ошибка:</b>\n\n{error}", parse_mode=ParseMode.HTML)
 
 
+@router.message(Command("testultra"))
+async def cmd_testultra(message: Message):
+    """Тест мультипликатора Ультра кейса"""
+    if message.from_user.id not in ADMIN_IDS:
+        return
+
+    results = {"x1": 0, "x2": 0, "x3": 0}
+    
+    for _ in range(100):
+        won = roll_case("ultra")
+        count = len([g for g in won if g != "nothing"])
+        if count == 0:
+            count = 1  # nothing считается как 1
+        results[f"x{min(count, 3)}"] += 1
+
+    await message.answer(
+        f"🧪 <b>Тест Ультра кейса (100 прокруток):</b>\n\n"
+        f"x1: {results['x1']}%\n"
+        f"x2: {results['x2']}%\n"
+        f"x3: {results['x3']}%",
+        parse_mode=ParseMode.HTML
+    )
+
+
 @router.message(Command("reloadgifts"))
 async def cmd_reloadgifts(message: Message):
     if message.from_user.id not in ADMIN_IDS:
@@ -741,7 +945,7 @@ async def cmd_reloadgifts(message: Message):
         text = "✅ <b>Подарки перезагружены!</b>\n\n"
         for gid, gdata in GIFTS.items():
             tg_id = gdata.get("telegram_gift_id")
-            tg_id_str = str(tg_id) if tg_id else "НЕТ"
+            tg_id_str = str(tg_id)[:10] + "..." if tg_id else "НЕТ"
             text += f"{'✅' if tg_id else '❌'} {gdata['title']}: <code>{tg_id_str}</code>\n"
         await message.answer(text, parse_mode=ParseMode.HTML)
     else:
@@ -857,16 +1061,17 @@ async def cmd_pr(message: Message, command: CommandObject):
         return
 
     if not command.args:
+        gifts_list = ", ".join(GIFTS.keys())
+        cases_list = ", ".join(CASES.keys())
         await message.answer(
             "📝 <b>Промокоды:</b>\n\n"
             "<b>Создать:</b>\n"
             "<code>/pr new КОД тип:id кол-во</code>\n\n"
             "<b>Примеры:</b>\n"
-            "<code>/pr new FREEBEAR gift:bear 5</code>\n"
-            "<code>/pr new FREECASE case:premium 10</code>\n\n"
-            "<b>Типы:</b>\n"
-            "🎁 gift: rocket/rose/box/heart/bear\n"
-            "📦 case: premium/rich/ultra\n\n"
+            "<code>/pr new FREERING gift:brilliant_ring 5</code>\n"
+            "<code>/pr new FREECASE case:ultra 3</code>\n\n"
+            f"<b>Подарки:</b>\n<code>{gifts_list}</code>\n\n"
+            f"<b>Кейсы:</b>\n<code>{cases_list}</code>\n\n"
             "<code>/pr list</code> — список\n"
             "<code>/pr delete КОД</code>",
             parse_mode=ParseMode.HTML
@@ -996,7 +1201,8 @@ async def cmd_ping(message: Message):
         f"🎟 Промо: {promos}\n"
         f"🎁 Подарки: {gifts_status}\n"
         f"🔗 Замаплено: {mapped}/{len(GIFTS)}\n"
-        f"👥 Админы: {len(ADMIN_IDS)}"
+        f"👥 Админы: {len(ADMIN_IDS)}\n"
+        f"🔥 Кейсов: {len(CASES)}"
     )
 
 
@@ -1011,11 +1217,17 @@ async def cmd_debug(message: Message):
     text += f"Sheets: {'✅' if spreadsheet else '❌'}\n"
     text += f"Gifts loaded: {gifts_loaded}\n"
     text += f"Prices: {sorted(available_telegram_gifts.keys())}\n\n"
-    text += "<b>Mapping:</b>\n"
+    
+    text += "<b>Подарки:</b>\n"
     for gid, gdata in GIFTS.items():
         tg_id = gdata.get('telegram_gift_id')
-        tg_str = str(tg_id) if tg_id else "НЕТ"
-        text += f"{gdata['title']}: <code>{tg_str}</code>\n"
+        tg_str = str(tg_id)[:10] + "..." if tg_id else "НЕТ"
+        text += f"{'✅' if tg_id else '❌'} {gdata['title']} ({gdata['price']}⭐)\n"
+    
+    text += "\n<b>Кейсы:</b>\n"
+    for cid, cdata in CASES.items():
+        multi = "🔥x3" if cdata.get("multiplier", {}).get("enabled") else ""
+        text += f"📦 {cdata['title']} ({cdata['price']}⭐) {multi}\n"
 
     await message.answer(text, parse_mode=ParseMode.HTML)
 
@@ -1113,25 +1325,96 @@ async def successful_payment(message: Message):
         if item_type == "case":
             item_id = payload.get("id")
             case = CASES[item_id]
-            won = roll_case(item_id)
+            won_gifts = roll_case(item_id)
 
-            if won and won != "nothing":
-                wg = GIFTS[won]
-                case_text = f"Из {case['title']}" + (f" для @{buyer_username}" if buyer_username else "")
+            print(f"   🎰 Выпало: {won_gifts}")
 
+            # Фильтруем "nothing"
+            real_wins = [g for g in won_gifts if g != "nothing"]
+
+            if not real_wins:
+                # Ничего не выиграл
+                save_purchase(buyer_id, {"type": "case_lose", "case_id": item_id, "paid": total})
+                await message.answer(
+                    f"🎰 <b>{case['title']}</b>\n\n😔 Ничего не выпало...",
+                    parse_mode=ParseMode.HTML
+                )
+                return
+
+            # Есть выигрыш!
+            is_jackpot = len(real_wins) > 1
+            
+            if is_jackpot:
+                await message.answer(
+                    f"🎰 <b>{case['title']}</b>\n\n"
+                    f"🎉🎉🎉 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🎉🎉🎉\n\n"
+                    f"Отправляю {len(real_wins)} подарков...",
+                    parse_mode=ParseMode.HTML
+                )
+            else:
+                wg = GIFTS[real_wins[0]]
                 await message.answer(f"🎰 Выпало: {wg['title']}! Отправляю...")
 
-                success, error = await send_real_gift(buyer_id, won, case_text)
+            # Отправляем все подарки
+            success_count = 0
+            fail_count = 0
+            sent_gifts = []
 
-                save_purchase(buyer_id, {
-                    "type": "case_win",
-                    "case_id": item_id,
-                    "gift_id": won,
-                    "paid": total,
-                    "success": success
-                })
+            for gift_id in real_wins:
+                wg = GIFTS[gift_id]
+                case_text = f"Из {case['title']}" + (f" для @{buyer_username}" if buyer_username else "")
+                
+                if is_jackpot:
+                    case_text = f"🎉 ДЖЕКПОТ x{len(real_wins)}! " + case_text
+
+                success, error = await send_real_gift(buyer_id, gift_id, case_text)
 
                 if success:
+                    success_count += 1
+                    sent_gifts.append(wg['title'])
+                else:
+                    fail_count += 1
+
+                # Небольшая задержка между отправками
+                if len(real_wins) > 1:
+                    await asyncio.sleep(0.5)
+
+            # Сохраняем покупку
+            save_purchase(buyer_id, {
+                "type": "case_jackpot" if is_jackpot else "case_win",
+                "case_id": item_id,
+                "gift_ids": real_wins,
+                "paid": total,
+                "success_count": success_count
+            })
+
+            # Итоговое сообщение
+            if is_jackpot:
+                # Группируем одинаковые подарки
+                counts = {}
+                for g in sent_gifts:
+                    counts[g] = counts.get(g, 0) + 1
+                
+                gifts_text = "\n".join(
+                    f"• {title}" + (f" x{count}" if count > 1 else "")
+                    for title, count in counts.items()
+                )
+                
+                result_msg = (
+                    f"🎰 <b>{case['title']}</b>\n\n"
+                    f"🎉🎉🎉 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🎉🎉🎉\n\n"
+                    f"{gifts_text}\n\n"
+                )
+                
+                if fail_count > 0:
+                    result_msg += f"⚠️ {fail_count} подарков не доставлено"
+                else:
+                    result_msg += "✅ Все подарки отправлены!"
+                
+                await message.answer(result_msg, parse_mode=ParseMode.HTML)
+            else:
+                wg = GIFTS[real_wins[0]]
+                if success_count > 0:
                     await message.answer(
                         f"🎰 <b>{case['title']}</b>\n\n🎉 {wg['title']} отправлен!",
                         parse_mode=ParseMode.HTML
@@ -1143,12 +1426,6 @@ async def successful_payment(message: Message):
                         f"⚠️ Но не удалось отправить",
                         parse_mode=ParseMode.HTML
                     )
-            else:
-                save_purchase(buyer_id, {"type": "case_lose", "case_id": item_id, "paid": total})
-                await message.answer(
-                    f"🎰 <b>{case['title']}</b>\n\n😔 Ничего...",
-                    parse_mode=ParseMode.HTML
-                )
             return
 
     except Exception as e:
@@ -1162,11 +1439,13 @@ async def successful_payment(message: Message):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n" + "=" * 60)
-    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ v4.0")
+    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ v5.0 — МУЛЬТИПЛИКАТОРЫ")
     print("=" * 60)
     print(f"🔧 BOT_TOKEN: {'✅' if BOT_TOKEN else '❌'}")
     print(f"🔧 WEBAPP_URL: {WEBAPP_URL}")
     print(f"🔧 ADMIN_IDS: {ADMIN_IDS}")
+    print(f"🎁 Подарков: {len(GIFTS)}")
+    print(f"📦 Кейсов: {len(CASES)}")
 
     init_google_sheets()
     await load_telegram_gifts()
@@ -1238,9 +1517,15 @@ async def create_invoice(req: InvoiceReq):
 
         elif req.caseId and req.caseId in CASES:
             case = CASES[req.caseId]
+            
+            # Добавляем инфу о мультипликаторе в описание
+            desc = "Открой и выиграй!"
+            if case.get("multiplier", {}).get("enabled"):
+                desc = "🔥 Шанс выбить x2 или x3 подарка!"
+            
             link = await bot.create_invoice_link(
                 title=case["title"],
-                description="Открой и выиграй!",
+                description=desc,
                 payload=json.dumps({"type": "case", "id": req.caseId}),
                 currency="XTR",
                 prices=[LabeledPrice(label=case["title"], amount=case["price"])]
@@ -1275,9 +1560,11 @@ async def api_use_credit(req: UseCreditReq):
 @app.get("/")
 async def root():
     return {
-        "app": "Подарочница v4.0",
+        "app": "Подарочница v5.0",
         "status": "running",
-        "gifts_loaded": gifts_loaded
+        "gifts_loaded": gifts_loaded,
+        "gifts_count": len(GIFTS),
+        "cases_count": len(CASES)
     }
 
 
