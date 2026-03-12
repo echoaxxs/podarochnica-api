@@ -25,7 +25,7 @@ from pydantic import BaseModel
 import uvicorn
 
 print("=" * 50)
-print("🚀 ВЕРСИЯ 5.0 — СИНХРОНИЗАЦИЯ + МУЛЬТИПЛИКАТОРЫ")
+print("🚀 ВЕРСИЯ 5.1 — МУЛЬТИПЛИКАТОРЫ FIXED")
 print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
@@ -44,9 +44,8 @@ SIGNATURE_COSTS = {
     "@bogclm и @echoaxxs": 5,
 }
 
-# ===== ПОДАРКИ (СИНХРОНИЗИРОВАНО С САЙТОМ) =====
+# ===== ПОДАРКИ =====
 GIFTS = {
-    # Премиум (100⭐)
     "brilliant_ring": {
         "title": "💍 Колечко",
         "price": 100,
@@ -68,7 +67,6 @@ GIFTS = {
         "telegram_gift_id": None,
         "gif_url": "https://podarochnica.pages.dev/diamond.gif"
     },
-    # Средние (50⭐)
     "flowers_bouquet": {
         "title": "💐 Букет цветов",
         "price": 50,
@@ -97,7 +95,6 @@ GIFTS = {
         "telegram_gift_id": None,
         "gif_url": "https://podarochnica.pages.dev/rocket.gif"
     },
-    # Базовые (25⭐)
     "rose": {
         "title": "🌹 Роза",
         "price": 25,
@@ -112,7 +109,6 @@ GIFTS = {
         "telegram_gift_id": None,
         "gif_url": "https://podarochnica.pages.dev/gift.gif"
     },
-    # Простые (15⭐)
     "heart": {
         "title": "❤️ Сердце",
         "price": 15,
@@ -129,7 +125,7 @@ GIFTS = {
     },
 }
 
-# ===== КЕЙСЫ (СИНХРОНИЗИРОВАНО С САЙТОМ) =====
+# ===== КЕЙСЫ (БЕЗ None!) =====
 CASES = {
     "weekly": {
         "title": "📦 Еженедельный кейс",
@@ -140,8 +136,7 @@ CASES = {
             {"gift_id": "heart", "chance": 0.00},
             {"gift_id": "bear", "chance": 0.00},
             {"gift_id": "nothing", "chance": 1.00},
-        ],
-        "multiplier": None  # Нет мультипликатора
+        ]
     },
     "premium": {
         "title": "💎 Премиум кейс",
@@ -151,8 +146,7 @@ CASES = {
             {"gift_id": "box", "chance": 0.35},
             {"gift_id": "rocket", "chance": 0.00},
             {"gift_id": "nothing", "chance": 0.30},
-        ],
-        "multiplier": None  # Нет мультипликатора
+        ]
     },
     "rich": {
         "title": "💰 Кейс Богач",
@@ -163,8 +157,7 @@ CASES = {
             {"gift_id": "brilliant_ring", "chance": 0.10},
             {"gift_id": "rocket", "chance": 0.15},
             {"gift_id": "nothing", "chance": 0.15},
-        ],
-        "multiplier": None  # Нет мультипликатора
+        ]
     },
     "ultra": {
         "title": "🔥 Ультра кейс",
@@ -175,13 +168,12 @@ CASES = {
             {"gift_id": "heroic_cup", "chance": 0.30},
             {"gift_id": "nothing", "chance": 0.05},
         ],
-        # Мультипликатор для Ультра кейса!
         "multiplier": {
             "enabled": True,
             "chances": [
-                {"count": 1, "chance": 0.70},  # 70% - 1 подарок
-                {"count": 2, "chance": 0.22},  # 22% - 2 подарка
-                {"count": 3, "chance": 0.08},  # 8% - 3 подарка (ДЖЕКПОТ!)
+                {"count": 1, "chance": 0.70},
+                {"count": 2, "chance": 0.22},
+                {"count": 3, "chance": 0.08},
             ]
         }
     },
@@ -247,7 +239,7 @@ def get_sheet(name: str):
         return None
 
 
-# ===== ПАМЯТЬ (фоллбэк) =====
+# ===== ПАМЯТЬ =====
 MEMORY = {"promocodes": {}, "credits": {}, "purchases": {}, "donations": [], "pending_promocodes": {}}
 
 
@@ -666,11 +658,6 @@ async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None)
 
 
 def roll_case(case_id: str) -> List[str]:
-    """
-    Крутит кейс и возвращает список выигранных подарков.
-    Для обычных кейсов - список из 1 элемента.
-    Для Ультра кейса с мультипликатором - может быть 1-3 подарка.
-    """
     case = CASES.get(case_id)
     if not case:
         return []
@@ -704,9 +691,7 @@ def roll_case(case_id: str) -> List[str]:
                 break
         
         # Если выпало "nothing" при мультипликаторе > 1, перекручиваем
-        # (чтобы не было обидно получить x3 и одно "ничего")
         if won == "nothing" and gift_count > 1:
-            # Пробуем ещё раз, исключая nothing
             non_nothing_drops = [d for d in case["drops"] if d["gift_id"] != "nothing"]
             if non_nothing_drops:
                 total_chance = sum(d["chance"] for d in non_nothing_drops)
@@ -721,36 +706,10 @@ def roll_case(case_id: str) -> List[str]:
         if won != "nothing":
             won_gifts.append(won)
     
-    # Если все попытки вернули nothing
     if not won_gifts:
         return ["nothing"]
     
     return won_gifts
-
-
-def format_multi_win(gifts: List[str]) -> str:
-    """Форматирует выигрыш с мультипликатором"""
-    if len(gifts) == 1:
-        if gifts[0] == "nothing":
-            return "😔 Ничего не выпало..."
-        gift = GIFTS.get(gifts[0], {})
-        return f"🎉 Выпало: {gift.get('title', gifts[0])}!"
-    
-    # Считаем одинаковые подарки
-    counts = {}
-    for g in gifts:
-        counts[g] = counts.get(g, 0) + 1
-    
-    parts = []
-    for gift_id, count in counts.items():
-        gift = GIFTS.get(gift_id, {})
-        title = gift.get('title', gift_id)
-        if count > 1:
-            parts.append(f"{title} x{count}")
-        else:
-            parts.append(title)
-    
-    return f"🎉🎉🎉 ДЖЕКПОТ x{len(gifts)}! 🎉🎉🎉\n\n" + "\n".join(f"• {p}" for p in parts)
 
 
 # ===== КОМАНДЫ =====
@@ -851,7 +810,6 @@ async def cmd_donate(message: Message, command: CommandObject):
         await message.answer("❌ Ошибка создания платежа")
 
 
-# ===== ДИАГНОСТИКА =====
 @router.message(Command("giftcheck"))
 async def cmd_giftcheck(message: Message):
     text = "🔍 <b>Диагностика подарков:</b>\n\n"
@@ -908,30 +866,6 @@ async def cmd_testgift(message: Message, command: CommandObject):
         await message.answer(f"❌ <b>Ошибка:</b>\n\n{error}", parse_mode=ParseMode.HTML)
 
 
-@router.message(Command("testultra"))
-async def cmd_testultra(message: Message):
-    """Тест мультипликатора Ультра кейса"""
-    if message.from_user.id not in ADMIN_IDS:
-        return
-
-    results = {"x1": 0, "x2": 0, "x3": 0}
-    
-    for _ in range(100):
-        won = roll_case("ultra")
-        count = len([g for g in won if g != "nothing"])
-        if count == 0:
-            count = 1  # nothing считается как 1
-        results[f"x{min(count, 3)}"] += 1
-
-    await message.answer(
-        f"🧪 <b>Тест Ультра кейса (100 прокруток):</b>\n\n"
-        f"x1: {results['x1']}%\n"
-        f"x2: {results['x2']}%\n"
-        f"x3: {results['x3']}%",
-        parse_mode=ParseMode.HTML
-    )
-
-
 @router.message(Command("reloadgifts"))
 async def cmd_reloadgifts(message: Message):
     if message.from_user.id not in ADMIN_IDS:
@@ -981,7 +915,6 @@ async def cmd_tggifts(message: Message):
         await message.answer(f"❌ Ошибка: {e}")
 
 
-# ===== ПРОМОКОД ДЛЯ ЮЗЕРОВ =====
 @router.message(Command("promocode"))
 async def cmd_promocode(message: Message, command: CommandObject):
     uid = message.from_user.id
@@ -1052,7 +985,6 @@ async def cmd_promocode(message: Message, command: CommandObject):
     await message.answer(f"✅ <b>Активировано!</b>\n\n🎁 Получено: {title}", parse_mode=ParseMode.HTML)
 
 
-# ===== АДМИН КОМАНДЫ =====
 @router.message(Command("pr"))
 async def cmd_pr(message: Message, command: CommandObject):
     uid = message.from_user.id
@@ -1221,12 +1153,12 @@ async def cmd_debug(message: Message):
     text += "<b>Подарки:</b>\n"
     for gid, gdata in GIFTS.items():
         tg_id = gdata.get('telegram_gift_id')
-        tg_str = str(tg_id)[:10] + "..." if tg_id else "НЕТ"
         text += f"{'✅' if tg_id else '❌'} {gdata['title']} ({gdata['price']}⭐)\n"
     
     text += "\n<b>Кейсы:</b>\n"
     for cid, cdata in CASES.items():
-        multi = "🔥x3" if cdata.get("multiplier", {}).get("enabled") else ""
+        multiplier = cdata.get("multiplier")
+        multi = "🔥x3" if multiplier and multiplier.get("enabled") else ""
         text += f"📦 {cdata['title']} ({cdata['price']}⭐) {multi}\n"
 
     await message.answer(text, parse_mode=ParseMode.HTML)
@@ -1251,7 +1183,6 @@ async def successful_payment(message: Message):
     print(f"\n💰 ПЛАТЁЖ от {buyer_id} (@{buyer_username}): {item_type}, {total}⭐")
 
     try:
-        # ===== ДОНАТ =====
         if item_type == "donate":
             save_donation(buyer_id, buyer_username, total)
             await message.answer(
@@ -1269,7 +1200,6 @@ async def successful_payment(message: Message):
                     pass
             return
 
-        # ===== ОПЛАТА ПРОМОКОДА =====
         if item_type == "promocode_payment":
             code = payload.get("code")
             pending = MEMORY.get("pending_promocodes", {}).get(code)
@@ -1290,7 +1220,6 @@ async def successful_payment(message: Message):
                 await message.answer("✅ Оплата прошла, но промокод не найден.")
             return
 
-        # ===== ПОКУПКА ПОДАРКА =====
         if item_type == "gift":
             item_id = payload.get("id")
             sender_key = payload.get("sender")
@@ -1321,7 +1250,6 @@ async def successful_payment(message: Message):
                 )
             return
 
-        # ===== ПОКУПКА КЕЙСА =====
         if item_type == "case":
             item_id = payload.get("id")
             case = CASES[item_id]
@@ -1329,11 +1257,9 @@ async def successful_payment(message: Message):
 
             print(f"   🎰 Выпало: {won_gifts}")
 
-            # Фильтруем "nothing"
             real_wins = [g for g in won_gifts if g != "nothing"]
 
             if not real_wins:
-                # Ничего не выиграл
                 save_purchase(buyer_id, {"type": "case_lose", "case_id": item_id, "paid": total})
                 await message.answer(
                     f"🎰 <b>{case['title']}</b>\n\n😔 Ничего не выпало...",
@@ -1341,13 +1267,12 @@ async def successful_payment(message: Message):
                 )
                 return
 
-            # Есть выигрыш!
             is_jackpot = len(real_wins) > 1
             
             if is_jackpot:
                 await message.answer(
                     f"🎰 <b>{case['title']}</b>\n\n"
-                    f"🎉🎉🎉 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🎉🎉🎉\n\n"
+                    f"🔥🔥🔥 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🔥🔥🔥\n\n"
                     f"Отправляю {len(real_wins)} подарков...",
                     parse_mode=ParseMode.HTML
                 )
@@ -1355,7 +1280,6 @@ async def successful_payment(message: Message):
                 wg = GIFTS[real_wins[0]]
                 await message.answer(f"🎰 Выпало: {wg['title']}! Отправляю...")
 
-            # Отправляем все подарки
             success_count = 0
             fail_count = 0
             sent_gifts = []
@@ -1365,7 +1289,7 @@ async def successful_payment(message: Message):
                 case_text = f"Из {case['title']}" + (f" для @{buyer_username}" if buyer_username else "")
                 
                 if is_jackpot:
-                    case_text = f"🎉 ДЖЕКПОТ x{len(real_wins)}! " + case_text
+                    case_text = f"🔥 ДЖЕКПОТ x{len(real_wins)}! " + case_text
 
                 success, error = await send_real_gift(buyer_id, gift_id, case_text)
 
@@ -1375,11 +1299,9 @@ async def successful_payment(message: Message):
                 else:
                     fail_count += 1
 
-                # Небольшая задержка между отправками
                 if len(real_wins) > 1:
                     await asyncio.sleep(0.5)
 
-            # Сохраняем покупку
             save_purchase(buyer_id, {
                 "type": "case_jackpot" if is_jackpot else "case_win",
                 "case_id": item_id,
@@ -1388,9 +1310,7 @@ async def successful_payment(message: Message):
                 "success_count": success_count
             })
 
-            # Итоговое сообщение
             if is_jackpot:
-                # Группируем одинаковые подарки
                 counts = {}
                 for g in sent_gifts:
                     counts[g] = counts.get(g, 0) + 1
@@ -1402,7 +1322,7 @@ async def successful_payment(message: Message):
                 
                 result_msg = (
                     f"🎰 <b>{case['title']}</b>\n\n"
-                    f"🎉🎉🎉 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🎉🎉🎉\n\n"
+                    f"🔥🔥🔥 <b>ДЖЕКПОТ x{len(real_wins)}!</b> 🔥🔥🔥\n\n"
                     f"{gifts_text}\n\n"
                 )
                 
@@ -1439,7 +1359,7 @@ async def successful_payment(message: Message):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("\n" + "=" * 60)
-    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ v5.0 — МУЛЬТИПЛИКАТОРЫ")
+    print("🚀 ЗАПУСК ПОДАРОЧНИЦЫ v5.1")
     print("=" * 60)
     print(f"🔧 BOT_TOKEN: {'✅' if BOT_TOKEN else '❌'}")
     print(f"🔧 WEBAPP_URL: {WEBAPP_URL}")
@@ -1518,9 +1438,9 @@ async def create_invoice(req: InvoiceReq):
         elif req.caseId and req.caseId in CASES:
             case = CASES[req.caseId]
             
-            # Добавляем инфу о мультипликаторе в описание
             desc = "Открой и выиграй!"
-            if case.get("multiplier", {}).get("enabled"):
+            multiplier = case.get("multiplier")
+            if multiplier and multiplier.get("enabled"):
                 desc = "🔥 Шанс выбить x2 или x3 подарка!"
             
             link = await bot.create_invoice_link(
@@ -1560,7 +1480,7 @@ async def api_use_credit(req: UseCreditReq):
 @app.get("/")
 async def root():
     return {
-        "app": "Подарочница v5.0",
+        "app": "Подарочница v5.1",
         "status": "running",
         "gifts_loaded": gifts_loaded,
         "gifts_count": len(GIFTS),
