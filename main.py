@@ -57,19 +57,19 @@ GIFTS = {
 
 # ===== КЕЙСЫ =====
 CASES = {
-    "mini": {
-        "title": "🎲 Мини",
-        "price": 1,
-        "drops": [{"gift_id": "nothing", "chance": 1.00}]
-    },
     "weekly": {
         "title": "📦 Еженедельный",
         "price": 0,
         "drops": [{"gift_id": "nothing", "chance": 1.00}]
     },
+    "mini": {
+        "title": "🎲 Мини",
+        "price": 1,
+        "drops": [{"gift_id": "nothing", "chance": 1.00}]
+    },
     "premium": {
         "title": "💎 Премиум",
-        "price": 30,
+        "price": 50,
         "drops": [
             {"gift_id": "rose", "chance": 0.35},
             {"gift_id": "box", "chance": 0.35},
@@ -105,7 +105,45 @@ CASES = {
             ]
         }
     },
-    "star": {
+    "star-1": {
+        "title": "⭐ Star",
+        "price": 100,
+        "type": "stars",
+        "drops": [
+            {"stars": 50, "chance": 0.70, "can_win": True},
+            {"stars": 100, "chance": 0.30, "can_win": True},
+            {"stars": 250, "chance": 0.50, "can_win": False},
+            {"stars": 500, "chance": 0.40, "can_win": False},
+            {"stars": 800, "chance": 0.10, "can_win": False},
+            {"stars": 900, "chance": 0.05, "can_win": False},
+            {"stars": 999, "chance": 0.025, "can_win": False},
+            {"stars": 1000, "chance": 0.02, "can_win": False},
+            {"stars": 1200, "chance": 0.01, "can_win": False},
+            {"stars": 1500, "chance": 0.005, "can_win": False},
+            {"stars": 3000, "chance": 0.004, "can_win": False},
+            {"stars": 5000, "chance": 0.003, "can_win": False},
+            {"stars": 10000, "chance": 0.001, "can_win": False},
+        ]
+    },
+    "star-2": {
+        "title": "⭐ Star",
+        "price": 500,
+        "type": "stars",
+        "drops": [
+            {"stars": 250, "chance": 0.50, "can_win": True},
+            {"stars": 500, "chance": 0.40, "can_win": True},
+            {"stars": 800, "chance": 0.10, "can_win": False},
+            {"stars": 900, "chance": 0.05, "can_win": False},
+            {"stars": 999, "chance": 0.025, "can_win": False},
+            {"stars": 1000, "chance": 0.02, "can_win": False},
+            {"stars": 1200, "chance": 0.01, "can_win": False},
+            {"stars": 1500, "chance": 0.005, "can_win": False},
+            {"stars": 3000, "chance": 0.004, "can_win": False},
+            {"stars": 5000, "chance": 0.003, "can_win": False},
+            {"stars": 10000, "chance": 0.001, "can_win": False},
+        ]
+    },
+    "star-3": {
         "title": "⭐ Star",
         "price": 1000,
         "type": "stars",
