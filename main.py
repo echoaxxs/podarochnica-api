@@ -201,22 +201,22 @@ CASES = {
 }
 
 # ===== НОВОСТИ (для главной страницы) =====
-NEWS = [
-    {
-        "id": "1",
-        "title": "🎉 Запуск Подарочницы v7!",
-        "text": "Новый дизайн, Star кейсы и система гарантированных подарков!",
-        "image": "https://podarochnica.pages.dev/news/launch.png",
-        "date": "2025-01-15"
-    },
-    {
-        "id": "2", 
-        "title": "⭐ Star кейсы",
-        "text": "Открывай кейсы и выигрывай звёзды на баланс!",
-        "image": "https://podarochnica.pages.dev/news/stars.png",
-        "date": "2025-01-14"
-    },
-]
+#NEWS = [
+#    {
+#        "id": "1",
+#        "title": "🎉 Запуск Подарочницы v7!",
+#        "text": "Новый дизайн, Star кейсы и система гарантированных подарков!",
+#        "image": "https://podarochnica.pages.dev/news/launch.png",
+#        "date": "2025-01-15"
+#    },
+#    {
+#        "id": "2", 
+#        "title": "⭐ Star кейсы",
+#        "text": "Открывай кейсы и выигрывай звёзды на баланс!",
+#        "image": "https://podarochnica.pages.dev/news/stars.png",
+#        "date": "2025-01-14"
+#    },
+#]
 
 
 def format_gift_text(sender_key: str, recipient_username: str = None) -> str:
