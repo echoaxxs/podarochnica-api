@@ -249,6 +249,7 @@ def init_google_sheets():
             "pity": ["user_id", "spent"],  # Для pity системы
             "purchases": ["user_id", "type", "item_id", "paid", "sender", "timestamp"],
             "donations": ["user_id", "username", "amount", "timestamp"]
+            "news": ["id", "title", "text", "image", "date", "active"]
         }
         for name, headers in sheets_to_create.items():
             if name not in existing:
@@ -267,6 +268,44 @@ def get_sheet(name: str):
         return None
 
 
+def get_news_from_sheet() -> list:
+    """Получает активные новости напрямую из Google Sheets"""
+    if not spreadsheet:
+        return []
+    
+    try:
+        ws = get_sheet("news")
+        if not ws:
+            return []
+        
+        rows = ws.get_all_records()
+        news_list = []
+        
+        for row in rows:
+            # Читаем только те, у которых active = TRUE (или пусто)
+            is_active = str(row.get("active", "TRUE")).strip().upper()
+            if is_active == "FALSE":
+                continue
+            
+            # Если нет заголовка - пропускаем
+            if not str(row.get("title", "")).strip():
+                continue
+                
+            news_list.append({
+                "id": str(row.get("id", "")),
+                "title": str(row.get("title", "")),
+                "text": str(row.get("text", "")),
+                "image": str(row.get("image", "")) or None,
+                "date": str(row.get("date", ""))
+            })
+        
+        # Сортируем по дате (самые новые сверху)
+        news_list.sort(key=lambda x: x["date"], reverse=True)
+        return news_list
+        
+    except Exception as e:
+        print(f"❌ Ошибка чтения новостей: {e}")
+        return []
 # ===== ПАМЯТЬ =====
 MEMORY = {
     "promocodes": {},
@@ -1025,7 +1064,7 @@ async def api_get_user_data(req: InitDataReq):
 @app.get("/api/get-news")
 async def api_get_news():
     """Получить новости для главной страницы"""
-    return {"news": NEWS}
+    return {"news": get_news_from_sheet()}
 
 
 @app.get("/api/get-gifts")
