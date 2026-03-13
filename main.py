@@ -248,7 +248,7 @@ def init_google_sheets():
             "balances": ["user_id", "stars"],
             "pity": ["user_id", "spent"],  # Для pity системы
             "purchases": ["user_id", "type", "item_id", "paid", "sender", "timestamp"],
-            "donations": ["user_id", "username", "amount", "timestamp"]
+            "donations": ["user_id", "username", "amount", "timestamp"],
             "news": ["id", "title", "text", "image", "date", "active"]
         }
         for name, headers in sheets_to_create.items():
