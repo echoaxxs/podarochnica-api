@@ -35,6 +35,9 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "https://podarochnica.pages.dev")
 SELF_URL = os.getenv("RENDER_EXTERNAL_URL", os.getenv("SELF_URL", ""))
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
+MAINTENANCE_MODE = os.getenv("MAINTENANCE_MODE", "false").strip().lower() == "true"
+
+MAINTENANCE_TEXT = "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже."
 
 # Админы (могут создавать промокоды)
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
@@ -177,7 +180,7 @@ CASES = {
         "drops": [
             {"stars": 250, "chance": 0.50, "can_win": True},
             {"stars": 500, "chance": 0.40, "can_win": True},
-            {"stars": 1000, "chance": 0.08, "can_win": True},
+            {"stars": 1000, "chance": 0.08, "can_win": False},
             {"stars": 1500, "chance": 0.015, "can_win": False},
             {"stars": 5000, "chance": 0.004, "can_win": False},
             {"stars": 10000, "chance": 0.001, "can_win": False},
@@ -192,7 +195,7 @@ CASES = {
             {"stars": 500, "chance": 0.40, "can_win": True},
             {"stars": 800, "chance": 0.30, "can_win": True},
             {"stars": 1000, "chance": 0.20, "can_win": True},
-            {"stars": 1500, "chance": 0.07, "can_win": True},
+            {"stars": 1500, "chance": 0.07, "can_win": False},
             {"stars": 3000, "chance": 0.02, "can_win": False},
             {"stars": 5000, "chance": 0.007, "can_win": False},
             {"stars": 10000, "chance": 0.003, "can_win": False},
@@ -246,10 +249,11 @@ def init_google_sheets():
         sheets_to_create = {
             "promocodes": ["code", "reward_type", "reward_id", "max_uses", "uses", "used_by", "created", "paid"],
             "balances": ["user_id", "stars"],
-            "pity": ["user_id", "spent"],  # Для pity системы
+            "pity": ["user_id", "spent"],
             "purchases": ["user_id", "type", "item_id", "paid", "sender", "timestamp"],
             "donations": ["user_id", "username", "amount", "timestamp"],
-            "news": ["id", "title", "text", "image", "date", "active"]
+            "news": ["id", "title", "text", "image", "date", "active"],
+            "sales": ["id", "title", "discount", "only_with_signature", "starts_at", "ends_at", "active"]
         }
         for name, headers in sheets_to_create.items():
             if name not in existing:
@@ -306,6 +310,118 @@ def get_news_from_sheet() -> list:
     except Exception as e:
         print(f"❌ Ошибка чтения новостей: {e}")
         return []
+
+def parse_bool(value, default=False):
+    if value is None:
+        return default
+    s = str(value).strip().upper()
+    if s in ("TRUE", "1", "YES", "Y", "ДА"):
+        return True
+    if s in ("FALSE", "0", "NO", "N", "НЕТ"):
+        return False
+    return default
+
+
+def parse_dt(value: str):
+    if not value:
+        return None
+    value = str(value).strip()
+    try:
+        return datetime.fromisoformat(value)
+    except:
+        return None
+
+
+def get_active_sales() -> list:
+    """Получить активные скидки из Google Sheets"""
+    if not spreadsheet:
+        return []
+
+    try:
+        ws = get_sheet("sales")
+        if not ws:
+            return []
+
+        rows = ws.get_all_records()
+        now = datetime.now()
+        result = []
+
+        for row in rows:
+            is_active = parse_bool(row.get("active", "TRUE"), True)
+            if not is_active:
+                continue
+
+            starts_at = parse_dt(row.get("starts_at", ""))
+            ends_at = parse_dt(row.get("ends_at", ""))
+
+            if starts_at and now < starts_at:
+                continue
+            if ends_at and now > ends_at:
+                continue
+
+            try:
+                discount = int(row.get("discount", 0))
+            except:
+                discount = 0
+
+            if discount <= 0:
+                continue
+
+            result.append({
+                "id": str(row.get("id", "")).strip(),
+                "title": str(row.get("title", "")).strip() or "Скидка",
+                "discount": discount,
+                "only_with_signature": parse_bool(row.get("only_with_signature", "TRUE"), True),
+                "starts_at": str(row.get("starts_at", "")).strip(),
+                "ends_at": str(row.get("ends_at", "")).strip(),
+            })
+
+        return result
+    except Exception as e:
+        print(f"❌ Ошибка чтения sales: {e}")
+        return []
+
+def get_gift_signature_sale(sender: Optional[str]) -> dict | None:
+    """
+    Возвращает активную скидку для подарка, если выбрана подпись.
+    Сейчас логика такая:
+    - скидка действует только при наличии подписи
+    - берём первую подходящую активную акцию
+    """
+    if not sender or sender not in SENDERS:
+        return None
+
+    sales = get_active_sales()
+    for sale in sales:
+        if sale.get("only_with_signature", True):
+            return sale
+    return None
+
+
+def calc_gift_price_with_sale(gift_id: str, sender: Optional[str]) -> dict:
+    gift = GIFTS.get(gift_id)
+    if not gift:
+        return {"final_price": 0, "base_price": 0, "signature_cost": 0, "discount": 0, "sale": None}
+
+    base_price = gift["price"]
+    signature_cost = SIGNATURE_COSTS.get(sender, 0) if sender in SENDERS else 0
+    sale = get_gift_signature_sale(sender)
+
+    discount = 0
+    if sale:
+        discount = int(sale.get("discount", 0))
+
+    # Скидка идёт со стоимости подарка, НЕ с подписи
+    discounted_gift_price = max(0, base_price - discount)
+    final_price = discounted_gift_price + signature_cost
+
+    return {
+        "base_price": base_price,
+        "signature_cost": signature_cost,
+        "discount": discount,
+        "final_price": final_price,
+        "sale": sale
+    }
 # ===== ПАМЯТЬ =====
 MEMORY = {
     "promocodes": {},
@@ -334,6 +450,7 @@ def get_promocodes() -> dict:
                 used_by = json.loads(used_by_str) if used_by_str else []
             except:
                 used_by = []
+            used_by = normalize_used_by_list(used_by)
             result[code] = {
                 "reward_type": str(row.get("reward_type", "")),
                 "reward_id": str(row.get("reward_id", "")),
@@ -605,24 +722,46 @@ def validate_init_data(init_data: str) -> Optional[dict]:
 
 
 async def check_subscription(user_id: int) -> dict:
-    """Проверить подписку на обязательные каналы"""
+    """
+    Проверить подписку на обязательные каналы.
+    Логика:
+    - member / administrator / creator / restricted -> считаем подписан
+    - left / kicked -> не подписан
+    - если канал недоступен для проверки, считаем его missing, чтобы не пускать ложно
+    """
     if not REQUIRED_CHANNELS:
-        return {"subscribed": True, "missing": []}
-    
+        return {"subscribed": True, "missing": [], "checked": []}
+
     missing = []
+    checked = []
+
     for channel in REQUIRED_CHANNELS:
         try:
             member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
-            if member.status in ["left", "kicked"]:
+            status = str(member.status)
+
+            checked.append({
+                "channel": channel,
+                "status": status
+            })
+
+            if status in ("left", "kicked"):
                 missing.append(channel)
+
         except Exception as e:
             print(f"⚠️ Ошибка проверки подписки {channel}: {e}")
-            # Если не можем проверить - пропускаем
-            continue
-    
+            checked.append({
+                "channel": channel,
+                "status": "error",
+                "error": str(e)
+            })
+            # Если не удалось проверить — лучше считать missing
+            missing.append(channel)
+
     return {
         "subscribed": len(missing) == 0,
-        "missing": missing
+        "missing": list(dict.fromkeys(missing)),
+        "checked": checked
     }
 
 
@@ -778,6 +917,12 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
 # ===== КОМАНДА /start =====
 @router.message(Command("start"))
 async def cmd_start(message: Message):
+    uid = message.from_user.id
+
+    if is_maintenance_enabled() and not is_admin(uid):
+        await message.answer(MAINTENANCE_TEXT)
+        return
+
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🎁 Открыть", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
@@ -785,7 +930,7 @@ async def cmd_start(message: Message):
         "👋 <b>Подарочница</b>\n\n"
         "🎁 Подарки • 🎰 Кейсы • ⭐ Star кейс\n\n"
         "Нажми кнопку ниже чтобы открыть приложение!",
-        reply_markup=kb, 
+        reply_markup=kb,
         parse_mode=ParseMode.HTML
     )
 
@@ -1003,6 +1148,31 @@ class GetResultReq(BaseModel):
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
+def normalize_used_by_list(value) -> list:
+    if not value:
+        return []
+    result = []
+    for x in value:
+        try:
+            result.append(int(x))
+        except:
+            pass
+    return result
+
+def is_maintenance_enabled() -> bool:
+    return MAINTENANCE_MODE
+
+
+def maintenance_allowed(user_id: int) -> bool:
+    """В тех. работах только админы могут пользоваться ботом"""
+    if not is_maintenance_enabled():
+        return True
+    return is_admin(user_id)
+
+
+def raise_if_maintenance_for_user(user_id: int):
+    if not maintenance_allowed(user_id):
+        raise HTTPException(503, MAINTENANCE_TEXT)
 
 # === ENDPOINTS ===
 
@@ -1012,11 +1182,21 @@ async def api_check_subscription(req: InitDataReq):
     auth = validate_init_data(req.initData)
     if not auth:
         raise HTTPException(401, "Invalid auth")
-    
+
     uid = auth["user"]["id"]
+    admin = is_admin(uid)
+
+    # В тех. работах юзеру сразу говорим о перерыве
+    if is_maintenance_enabled() and not admin:
+        return {
+            "subscribed": False,
+            "maintenance": True,
+            "message": MAINTENANCE_TEXT,
+            "channels": []
+        }
+
     result = await check_subscription(uid)
-    
-    # Добавляем информацию о каналах
+
     channels_info = []
     for channel in REQUIRED_CHANNELS:
         try:
@@ -1030,13 +1210,14 @@ async def api_check_subscription(req: InitDataReq):
         except:
             channels_info.append({
                 "id": channel,
-                "title": channel,
+                "title": str(channel),
                 "username": None,
                 "missing": channel in result["missing"]
             })
-    
+
     return {
         "subscribed": result["subscribed"],
+        "maintenance": False,
         "channels": channels_info
     }
 
@@ -1049,6 +1230,8 @@ async def api_get_user_data(req: InitDataReq):
         raise HTTPException(401, "Invalid auth")
     
     uid = auth["user"]["id"]
+    raise_if_maintenance_for_user(uid)
+    
     balance = get_star_balance(uid)
     pity_spent = get_pity_spent(uid)
     admin = is_admin(uid)
@@ -1069,7 +1252,9 @@ async def api_get_news():
 
 @app.get("/api/get-gifts")
 async def api_get_gifts():
-    """Получить список подарков"""
+    """Получить список подарков + активные акции"""
+    active_sales = get_active_sales()
+
     return {
         "gifts": [
             {
@@ -1079,7 +1264,8 @@ async def api_get_gifts():
                 "gif_url": g["gif_url"]
             }
             for gid, g in GIFTS.items()
-        ]
+        ],
+        "sales": active_sales
     }
 
 
@@ -1130,6 +1316,7 @@ async def create_invoice(req: InvoiceReq):
     
     uid = auth["user"]["id"]
     buyer_username = auth["user"].get("username", "")
+    raise_if_maintenance_for_user(uid)
     
     # Проверка подписки
     sub_check = await check_subscription(uid)
@@ -1141,8 +1328,8 @@ async def create_invoice(req: InvoiceReq):
     try:
         if req.giftId and req.giftId in GIFTS:
             gift = GIFTS[req.giftId]
-            sig_cost = SIGNATURE_COSTS.get(req.sender, 0) if req.sender in SENDERS else 0
-            price = gift["price"] + sig_cost
+            price_info = calc_gift_price_with_sale(req.giftId, req.sender)
+            price = price_info["final_price"]
             desc = format_gift_text(req.sender, buyer_username) if req.sender in SENDERS else gift["title"]
             
             link = await bot.create_invoice_link(
@@ -1193,6 +1380,7 @@ async def api_get_case_result(req: GetResultReq):
         raise HTTPException(404, "Result not found or already retrieved")
     
     uid = auth["user"]["id"]
+    raise_if_maintenance_for_user(uid)
     
     # Добавляем актуальные данные
     result["newBalance"] = get_star_balance(uid)
@@ -1209,7 +1397,7 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
     
     uid = auth["user"]["id"]
     username = auth["user"].get("username", "")
-    
+    raise_if_maintenance_for_user(uid)
     # Проверка подписки
     sub_check = await check_subscription(uid)
     if not sub_check["subscribed"]:
@@ -1220,8 +1408,8 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
     # === ПОКУПКА ПОДАРКА ===
     if req.giftId and req.giftId in GIFTS:
         gift = GIFTS[req.giftId]
-        sig_cost = SIGNATURE_COSTS.get(req.sender, 0) if req.sender in SENDERS else 0
-        price = gift["price"] + sig_cost
+        price_info = calc_gift_price_with_sale(req.giftId, req.sender)
+        price = price_info["final_price"]
         
         if balance < price:
             raise HTTPException(400, f"Недостаточно звёзд. Нужно {price}, есть {balance}")
@@ -1357,67 +1545,71 @@ async def api_activate_promocode(req: PromocodeReq):
     auth = validate_init_data(req.initData)
     if not auth:
         raise HTTPException(401, "Invalid auth")
-    
-    uid = auth["user"]["id"]
+
+    uid = int(auth["user"]["id"])
+    raise_if_maintenance_for_user(uid)
     code = req.code.strip().upper()
     promos = get_promocodes()
-    
+
     if code not in promos:
         raise HTTPException(404, "Промокод не найден")
-    
+
     promo = promos[code]
-    
-    if uid in promo.get("used_by", []):
-        raise HTTPException(400, "Уже использован")
-    
+    promo["used_by"] = normalize_used_by_list(promo.get("used_by", []))
+
+    if uid in promo["used_by"]:
+        raise HTTPException(400, "Вы уже использовали этот промокод")
+
     if promo.get("uses", 0) >= promo.get("max_uses", 0):
-        raise HTTPException(400, "Закончился")
-    
+        raise HTTPException(400, "Промокод закончился")
+
+    # СНАЧАЛА фиксируем использование, потом выдаём награду
+    promo["uses"] = int(promo.get("uses", 0)) + 1
+    promo.setdefault("used_by", []).append(uid)
+    save_promocode(code, promo)
+
     rt, ri = promo["reward_type"], promo["reward_id"]
-    
-    if rt == "stars":
-        try:
+
+    try:
+        if rt == "stars":
             amount = int(ri)
             add_star_balance(uid, amount)
-            promo["uses"] = promo.get("uses", 0) + 1
-            promo.setdefault("used_by", []).append(uid)
-            save_promocode(code, promo)
             return {
-                "success": True, 
-                "reward": f"+{amount}⭐", 
+                "success": True,
+                "reward": f"+{amount}⭐",
                 "newBalance": get_star_balance(uid)
             }
-        except:
-            raise HTTPException(500, "Invalid stars amount")
-    
-    if rt == "gift":
-        gift = GIFTS.get(ri)
-        if gift:
+
+        if rt == "gift":
+            gift = GIFTS.get(ri)
+            if not gift:
+                raise HTTPException(404, "Подарок не найден")
+
             success, error = await send_real_gift(uid, ri, f"🎟 Промокод {code}")
-            promo["uses"] = promo.get("uses", 0) + 1
-            promo.setdefault("used_by", []).append(uid)
-            save_promocode(code, promo)
             if success:
                 return {"success": True, "reward": gift["title"]}
-            return {"success": True, "reward": gift["title"], "warning": error}
-    
-    if rt == "case":
-        # Для кейсов просто крутим сразу
-        result = roll_case(ri, uid)
-        promo["uses"] = promo.get("uses", 0) + 1
-        promo.setdefault("used_by", []).append(uid)
-        save_promocode(code, promo)
-        
-        case = CASES.get(ri)
-        title = case["title"] if case else ri
-        
-        return {
-            "success": True, 
-            "reward": f"Кейс: {title}",
-            "caseResult": result
-        }
-    
-    raise HTTPException(400, "Unknown reward type")
+            return {
+                "success": True,
+                "reward": gift["title"],
+                "warning": error
+            }
+
+        if rt == "case":
+            case = CASES.get(ri)
+            result = roll_case(ri, uid)
+            title = case["title"] if case else ri
+            return {
+                "success": True,
+                "reward": f"Кейс: {title}",
+                "caseResult": result
+            }
+
+        raise HTTPException(400, "Unknown reward type")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 # === ADMIN ENDPOINTS ===
