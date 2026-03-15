@@ -35,9 +35,7 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "https://podarochnica.pages.dev")
 SELF_URL = os.getenv("RENDER_EXTERNAL_URL", os.getenv("SELF_URL", ""))
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
-MAINTENANCE_MODE = os.getenv("MAINTENANCE_MODE", "false").strip().lower() == "true"
 
-MAINTENANCE_TEXT = "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже."
 
 # Админы
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
@@ -214,6 +212,34 @@ def format_gift_text(sender_key: str, recipient_username: str = None) -> str:
 gs_client = None
 spreadsheet = None
 
+# ===== НАСТРОЙКИ ИЗ GOOGLE SHEETS =====
+def get_setting(key: str, default: str = "") -> str:
+    """Получить настройку из листа settings"""
+    if not spreadsheet:
+        return default
+    try:
+        ws = get_sheet("settings")
+        if not ws:
+            return default
+        rows = ws.get_all_records()
+        for row in rows:
+            if str(row.get("key", "")).strip().lower() == key.lower():
+                return str(row.get("value", default)).strip()
+        return default
+    except Exception as e:
+        print(f"❌ Ошибка чтения настройки {key}: {e}")
+        return default
+
+
+def is_maintenance_enabled() -> bool:
+    """Проверить включён ли тех. перерыв"""
+    value = get_setting("maintenance", "FALSE")
+    return value.upper() in ("TRUE", "1", "YES", "ON", "ДА")
+
+
+def get_maintenance_text() -> str:
+    """Получить текст тех. перерыва"""
+    return get_setting("maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже.")
 
 def init_google_sheets():
     global gs_client, spreadsheet
@@ -234,12 +260,19 @@ def init_google_sheets():
             "purchases": ["user_id", "type", "item_id", "paid", "sender", "timestamp"],
             "donations": ["user_id", "username", "amount", "timestamp"],
             "news": ["id", "title", "text", "image", "date", "active"],
-            "sales": ["id", "title", "discount", "only_with_signature", "starts_at", "ends_at", "active"]
+            "sales": ["id", "title", "discount", "only_with_signature", "starts_at", "ends_at", "active"],
+            "settings": ["key", "value"]  # ← ДОБАВЛЕНО
         }
         for name, headers in sheets_to_create.items():
             if name not in existing:
                 ws = spreadsheet.add_worksheet(name, rows=5000, cols=10)
                 ws.append_row(headers)
+                
+                # Добавляем дефолтные настройки
+                if name == "settings":
+                    ws.append_row(["maintenance", "FALSE"])
+                    ws.append_row(["maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже."])
+        
         return True
     except Exception as e:
         print(f"❌ Google Sheets ошибка: {e}")
@@ -914,7 +947,7 @@ async def cmd_start(message: Message):
     uid = message.from_user.id
 
     if is_maintenance_enabled() and not is_admin(uid):
-        await message.answer(MAINTENANCE_TEXT)
+        await message.answer(get_maintenance_text())
         return
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -1166,7 +1199,7 @@ def maintenance_allowed(user_id: int) -> bool:
 
 def raise_if_maintenance_for_user(user_id: int):
     if not maintenance_allowed(user_id):
-        raise HTTPException(503, MAINTENANCE_TEXT)
+        raise HTTPException(503, get_maintenance_text())
 
 
 async def require_subscription(user_id: int):
@@ -1189,11 +1222,12 @@ async def api_check_subscription(req: InitDataReq):
     uid = auth["user"]["id"]
     admin = is_admin(uid)
 
+    # Проверяем тех. перерыв
     if is_maintenance_enabled() and not admin:
         return {
             "subscribed": False,
             "maintenance": True,
-            "message": MAINTENANCE_TEXT,
+            "message": get_maintenance_text(),
             "channels": []
         }
 
@@ -1231,7 +1265,6 @@ async def api_check_subscription(req: InitDataReq):
         "channels": channels_info
     }
 
-
 @app.post("/api/get-user-data")
 async def api_get_user_data(req: InitDataReq):
     auth = validate_init_data(req.initData)
@@ -1250,6 +1283,14 @@ async def api_get_user_data(req: InitDataReq):
         "pitySpent": pity_spent,
         "pityThreshold": PITY_THRESHOLD,
         "isAdmin": admin
+    }
+
+@app.get("/api/get-settings")
+async def api_get_settings():
+    """Получить текущие настройки (для отладки)"""
+    return {
+        "maintenance": is_maintenance_enabled(),
+        "maintenance_text": get_maintenance_text()
     }
 
 
