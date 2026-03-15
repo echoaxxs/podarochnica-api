@@ -38,11 +38,24 @@ GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
 
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
+# ===== ПАРСИНГ КАНАЛОВ =====
 REQUIRED_CHANNELS_RAW = os.getenv("REQUIRED_CHANNELS", "")
-REQUIRED_CHANNELS = [x.strip() for x in REQUIRED_CHANNELS_RAW.split(",") if x.strip()]
+REQUIRED_CHANNELS = []
+CHANNEL_LINKS = {}
+
+for item in REQUIRED_CHANNELS_RAW.split(","):
+    item = item.strip()
+    if not item:
+        continue
+    parts = item.split("|")
+    channel_id = parts[0].strip()
+    invite_link = parts[1].strip() if len(parts) > 1 else None
+    REQUIRED_CHANNELS.append(channel_id)
+    if invite_link:
+        CHANNEL_LINKS[channel_id] = invite_link
 
 print(f"📋 REQUIRED_CHANNELS: {REQUIRED_CHANNELS}")
-print(f"📋 Количество каналов: {len(REQUIRED_CHANNELS)}")
+print(f"📋 CHANNEL_LINKS: {CHANNEL_LINKS}")
 
 SENDERS = ["@echoaxxs", "@bogclm", "@bogclm и @echoaxxs"]
 SIGNATURE_COSTS = {"@echoaxxs": 2, "@bogclm": 2, "@bogclm и @echoaxxs": 5}
@@ -891,15 +904,27 @@ async def api_check_subscription(req: InitDataReq):
     
     channels = []
     for ch in REQUIRED_CHANNELS:
-        ch = ch.strip()
-        if not ch:
-            continue
+        link = CHANNEL_LINKS.get(ch)
+        title = ch
+        
         try:
             chat_id = int(ch) if ch.lstrip('-').isdigit() else ch
             chat = await bot.get_chat(chat_id)
-            channels.append({"id": ch, "title": chat.title, "username": chat.username, "missing": ch in result["missing"]})
+            title = chat.title or ch
+            if not link:
+                if chat.username:
+                    link = f"https://t.me/{chat.username}"
+                elif chat.invite_link:
+                    link = chat.invite_link
         except:
-            channels.append({"id": ch, "title": ch, "username": None, "missing": ch in result["missing"]})
+            pass
+        
+        channels.append({
+            "id": ch,
+            "title": title,
+            "link": link,
+            "missing": ch in result["missing"]
+        })
     
     return {"subscribed": result["subscribed"], "maintenance": False, "channels": channels}
 
