@@ -1186,11 +1186,6 @@ def normalize_used_by_list(value) -> list:
             pass
     return result
 
-
-def is_maintenance_enabled() -> bool:
-    return MAINTENANCE_MODE
-
-
 def maintenance_allowed(user_id: int) -> bool:
     if not is_maintenance_enabled():
         return True
