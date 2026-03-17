@@ -27,7 +27,7 @@ from pydantic import BaseModel
 import uvicorn
 
 print("=" * 50)
-print("🚀 ПОДАРОЧНИЦА v7.2 — ОПТИМИЗИРОВАННАЯ")
+print("🚀 ПОДАРОЧНИЦА v8.0 — АВТОЗАГРУЗКА ПОДАРКОВ")
 print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
@@ -38,6 +38,7 @@ GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
 
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
+
 # ===== ПАРСИНГ КАНАЛОВ =====
 REQUIRED_CHANNELS_RAW = os.getenv("REQUIRED_CHANNELS", "")
 REQUIRED_CHANNELS = []
@@ -55,44 +56,42 @@ for item in REQUIRED_CHANNELS_RAW.split(","):
         CHANNEL_LINKS[channel_id] = invite_link
 
 print(f"📋 REQUIRED_CHANNELS: {REQUIRED_CHANNELS}")
-print(f"📋 CHANNEL_LINKS: {CHANNEL_LINKS}")
 
 SENDERS = ["@echoaxxs", "@bogclm", "@bogclm и @echoaxxs"]
 SIGNATURE_COSTS = {"@echoaxxs": 2, "@bogclm": 2, "@bogclm и @echoaxxs": 5}
 
 PITY_THRESHOLD = 20
-PITY_REWARD_GIFT = "heart"
+PITY_REWARD_GIFT = None  # Будет установлен после загрузки подарков
 
-# ===== ПОДАРКИ =====
-GIFTS = {
-    "brilliant_ring": {"title": "💍 Колечко", "price": 100, "star_cost": 100, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/brilliant_ring.gif"},
-    "heroic_cup": {"title": "🏆 Кубок", "price": 100, "star_cost": 100, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/heroic_cup.gif"},
-    "diamond": {"title": "💎 Алмаз", "price": 100, "star_cost": 100, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/diamond.gif"},
-    "flowers_bouquet": {"title": "💐 Букет", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/bouquet_flowers.gif"},
-    "cupcake": {"title": "🧁 Тортик", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/cupcake.gif"},
-    "wine": {"title": "🍷 Вино", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/wine.gif"},
-    "rocket": {"title": "🚀 Ракета", "price": 50, "star_cost": 50, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rocket.gif"},
-    "rose": {"title": "🌹 Роза", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/rose.gif"},
-    "box": {"title": "🎁 Подарок", "price": 25, "star_cost": 25, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/gift.gif"},
-    "heart": {"title": "❤️ Сердце", "price": 15, "star_cost": 15, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/heart.gif"},
-    "bear": {"title": "🧸 Мишка", "price": 15, "star_cost": 15, "telegram_gift_id": None, "gif_url": "https://podarochnica.pages.dev/bear.gif"},
+# ===== ПОДАРКИ (автозагрузка) =====
+GIFTS = {}  # Заполняется автоматически из Telegram API
+
+# Кастомные эмодзи по цене для названий
+GIFT_EMOJIS = {
+    15: ["❤️", "🧸", "🌸", "🍬", "🎀"],
+    25: ["🌹", "🎁", "🍫", "🎈", "🌺"],
+    50: ["💐", "🧁", "🍷", "🚀", "🎂"],
+    100: ["💍", "🏆", "💎", "👑", "🌟"],
+    250: ["🔥", "⚡", "🎭", "🦋", "🌈"],
+    500: ["💫", "🎪", "🦄", "🌙", "✨"],
+    1000: ["🏅", "🎖️", "💠", "🔮", "🌠"],
 }
 
 # ===== КЕЙСЫ =====
 CASES = {
-    "mini": {"title": "🎲 Мини", "price": 1, "category": "cheap", "drops": [{"gift_id": "heart", "chance": 0.0}, {"gift_id": "bear", "chance": 0.0}], "pity_enabled": True},
-    "basic-5": {"title": "🎯 Базовый 5", "price": 5, "category": "cheap", "drops": [{"gift_id": "heart", "chance": 0.0}, {"gift_id": "bear", "chance": 0.0}], "pity_enabled": True},
-    "basic-10": {"title": "🎯 Базовый 10", "price": 10, "category": "cheap", "drops": [{"gift_id": "heart", "chance": 0.0}, {"gift_id": "bear", "chance": 0.0}], "pity_enabled": True},
-    "basic-15": {"title": "🎯 Базовый 15", "price": 15, "category": "cheap", "drops": [{"gift_id": "heart", "chance": 0.0}, {"gift_id": "bear", "chance": 0.0}], "pity_enabled": True},
-    "premium": {"title": "💎 Премиум", "price": 50, "category": "gifts", "drops": [{"gift_id": "rose", "chance": 0.35}, {"gift_id": "box", "chance": 0.35}, {"gift_id": "nothing", "chance": 0.30}]},
-    "rich": {"title": "💰 Богач", "price": 100, "category": "gifts", "drops": [{"gift_id": "rose", "chance": 0.30}, {"gift_id": "box", "chance": 0.30}, {"gift_id": "brilliant_ring", "chance": 0.10}, {"gift_id": "rocket", "chance": 0.15}, {"gift_id": "nothing", "chance": 0.15}]},
-    "ultra": {"title": "🔥 Ультра", "price": 500, "category": "gifts", "drops": [{"gift_id": "brilliant_ring", "chance": 0.35}, {"gift_id": "diamond", "chance": 0.30}, {"gift_id": "heroic_cup", "chance": 0.30}, {"gift_id": "nothing", "chance": 0.05}], "multiplier": {"enabled": True, "chances": [{"count": 1, "chance": 0.50}, {"count": 2, "chance": 0.35}, {"count": 3, "chance": 0.15}]}},
-    "star-100": {"title": "⭐ Star 100", "price": 100, "category": "stars", "type": "stars", "drops": [{"stars": 50, "chance": 0.70, "can_win": True}, {"stars": 100, "chance": 0.30, "can_win": True}, {"stars": 250, "chance": 0.50, "can_win": False}, {"stars": 500, "chance": 0.40, "can_win": False}, {"stars": 1000, "chance": 0.02, "can_win": False}]},
-    "star-500": {"title": "⭐ Star 500", "price": 500, "category": "stars", "type": "stars", "drops": [{"stars": 250, "chance": 0.50, "can_win": True}, {"stars": 500, "chance": 0.40, "can_win": True}, {"stars": 1000, "chance": 0.08, "can_win": False}, {"stars": 1500, "chance": 0.015, "can_win": False}]},
-    "star-1000": {"title": "⭐ Star 1000", "price": 1000, "category": "stars", "type": "stars", "drops": [{"stars": 500, "chance": 0.40, "can_win": True}, {"stars": 800, "chance": 0.30, "can_win": True}, {"stars": 1000, "chance": 0.20, "can_win": True}, {"stars": 1500, "chance": 0.07, "can_win": False}]},
+    "mini": {"title": "🎲 Мини", "price": 1, "category": "cheap", "pity_enabled": True},
+    "basic-5": {"title": "🎯 Базовый 5", "price": 5, "category": "cheap", "pity_enabled": True},
+    "basic-10": {"title": "🎯 Базовый 10", "price": 10, "category": "cheap", "pity_enabled": True},
+    "basic-15": {"title": "🎯 Базовый 15", "price": 15, "category": "cheap", "pity_enabled": True},
+    "premium": {"title": "💎 Премиум", "price": 50, "category": "gifts"},
+    "rich": {"title": "💰 Богач", "price": 100, "category": "gifts"},
+    "ultra": {"title": "🔥 Ультра", "price": 500, "category": "gifts", "multiplier": {"enabled": True, "chances": [{"count": 1, "chance": 0.50}, {"count": 2, "chance": 0.35}, {"count": 3, "chance": 0.15}]}},
+    "star-100": {"title": "⭐ Star 100", "price": 100, "category": "stars", "type": "stars", "drops": [{"stars": 50, "chance": 0.70}, {"stars": 100, "chance": 0.25}, {"stars": 250, "chance": 0.05}]},
+    "star-500": {"title": "⭐ Star 500", "price": 500, "category": "stars", "type": "stars", "drops": [{"stars": 250, "chance": 0.50}, {"stars": 500, "chance": 0.40}, {"stars": 1000, "chance": 0.10}]},
+    "star-1000": {"title": "⭐ Star 1000", "price": 1000, "category": "stars", "type": "stars", "drops": [{"stars": 500, "chance": 0.40}, {"stars": 800, "chance": 0.35}, {"stars": 1000, "chance": 0.20}, {"stars": 1500, "chance": 0.05}]},
 }
 
-# ===== КЭШ (главное для скорости!) =====
+# ===== КЭШ =====
 CACHE = {
     "settings": {},
     "settings_time": 0,
@@ -105,8 +104,8 @@ CACHE = {
     "promocodes": {},
     "promocodes_time": 0,
 }
-CACHE_TTL = 30  # 30 секунд для настроек
-CACHE_TTL_LONG = 120  # 2 минуты для новостей/акций
+CACHE_TTL = 30
+CACHE_TTL_LONG = 120
 
 MEMORY = {"pending_results": {}}
 
@@ -145,7 +144,6 @@ def init_google_sheets():
                     ws.append_row(["maintenance", "FALSE"])
                     ws.append_row(["maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже."])
         
-        # Предзагрузка кэша
         _load_all_cache()
         return True
     except Exception as e:
@@ -154,7 +152,6 @@ def init_google_sheets():
 
 
 def _load_all_cache():
-    """Предзагрузка всех данных в кэш при старте"""
     try:
         _refresh_settings_cache()
         _refresh_news_cache()
@@ -176,7 +173,6 @@ def get_sheet(name: str):
 # ===== КЭШИРОВАННЫЕ ФУНКЦИИ =====
 
 def _refresh_settings_cache():
-    """Обновить кэш настроек"""
     if not spreadsheet:
         return
     try:
@@ -197,7 +193,6 @@ def _refresh_settings_cache():
 
 
 def get_setting(key: str, default: str = "") -> str:
-    """Получить настройку (с кэшем)"""
     now = time.time()
     if now - CACHE.get("settings_time", 0) > CACHE_TTL:
         _refresh_settings_cache()
@@ -205,18 +200,15 @@ def get_setting(key: str, default: str = "") -> str:
 
 
 def is_maintenance_enabled() -> bool:
-    """Проверить тех. перерыв"""
     value = get_setting("maintenance", "FALSE")
     return value.upper() in ("TRUE", "1", "YES", "ON", "ДА")
 
 
 def get_maintenance_text() -> str:
-    """Получить текст тех. перерыва"""
     return get_setting("maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже.")
 
 
 def _refresh_news_cache():
-    """Обновить кэш новостей"""
     if not spreadsheet:
         return
     try:
@@ -245,7 +237,6 @@ def _refresh_news_cache():
 
 
 def get_news() -> list:
-    """Получить новости (с кэшем)"""
     now = time.time()
     if now - CACHE.get("news_time", 0) > CACHE_TTL_LONG:
         _refresh_news_cache()
@@ -253,7 +244,6 @@ def get_news() -> list:
 
 
 def _refresh_sales_cache():
-    """Обновить кэш акций"""
     if not spreadsheet:
         return
     try:
@@ -261,7 +251,6 @@ def _refresh_sales_cache():
         if not ws:
             return
         rows = ws.get_all_records()
-        now_dt = datetime.now()
         sales = []
         for row in rows:
             if str(row.get("active", "TRUE")).strip().upper() == "FALSE":
@@ -285,7 +274,6 @@ def _refresh_sales_cache():
 
 
 def get_sales() -> list:
-    """Получить акции (с кэшем)"""
     now = time.time()
     if now - CACHE.get("sales_time", 0) > CACHE_TTL_LONG:
         _refresh_sales_cache()
@@ -293,7 +281,6 @@ def get_sales() -> list:
 
 
 def _refresh_balances_cache():
-    """Обновить кэш балансов"""
     if not spreadsheet:
         return
     try:
@@ -312,7 +299,6 @@ def _refresh_balances_cache():
 
 
 def _refresh_pity_cache():
-    """Обновить кэш pity"""
     if not spreadsheet:
         return
     try:
@@ -330,7 +316,7 @@ def _refresh_pity_cache():
         print(f"❌ Ошибка загрузки pity: {e}")
 
 
-# ===== БАЛАНС (с кэшем в памяти) =====
+# ===== БАЛАНС =====
 
 def get_star_balance(user_id: int) -> int:
     return CACHE.get("balances", {}).get(str(user_id), 0)
@@ -375,7 +361,7 @@ def use_star_balance(user_id: int, amount: int) -> bool:
     return True
 
 
-# ===== PITY (с кэшем в памяти) =====
+# ===== PITY =====
 
 def get_pity_spent(user_id: int) -> int:
     return CACHE.get("pity", {}).get(str(user_id), 0)
@@ -510,7 +496,7 @@ def delete_promocode(code: str):
         print(f"❌ delete_promocode: {e}")
 
 
-# ===== СОХРАНЕНИЕ (асинхронное, без блокировки) =====
+# ===== СОХРАНЕНИЕ =====
 
 def save_purchase(user_id: int, data: dict):
     if not spreadsheet:
@@ -636,48 +622,142 @@ async def check_subscription(user_id: int) -> dict:
 
 
 async def load_telegram_gifts():
+    """Автоматическая загрузка подарков из Telegram API"""
+    global GIFTS, PITY_REWARD_GIFT
+    
     try:
-        gifts = await bot.get_available_gifts()
-        if not gifts or not gifts.gifts:
+        available = await bot.get_available_gifts()
+        if not available or not available.gifts:
+            print("❌ Нет доступных подарков в Telegram")
             return False
         
-        gifts_by_price = {}
-        for gift in gifts.gifts:
-            gifts_by_price.setdefault(gift.star_count, []).append(gift)
+        print(f"📦 Найдено {len(available.gifts)} подарков в Telegram API")
         
-        used = {}
-        for gid, gdata in GIFTS.items():
-            cost = gdata["star_cost"]
-            if cost in gifts_by_price:
-                idx = used.get(cost, 0)
-                GIFTS[gid]["telegram_gift_id"] = gifts_by_price[cost][idx % len(gifts_by_price[cost])].id
-                used[cost] = idx + 1
-            elif gifts_by_price:
-                closest = min(gifts_by_price.keys(), key=lambda x: abs(x - cost))
-                idx = used.get(closest, 0)
-                GIFTS[gid]["telegram_gift_id"] = gifts_by_price[closest][idx % len(gifts_by_price[closest])].id
-                GIFTS[gid]["star_cost"] = closest
-                used[closest] = idx + 1
+        # Группируем по цене для назначения названий
+        by_price = {}
+        for gift in available.gifts:
+            by_price.setdefault(gift.star_count, []).append(gift)
         
-        print("✅ Подарки загружены!")
+        gifts_data = {}
+        used_emojis = {price: 0 for price in GIFT_EMOJIS}
+        cheapest_gift_id = None
+        cheapest_price = float('inf')
+        
+        for gift in available.gifts:
+            gift_id = gift.id
+            price = gift.star_count
+            sticker = gift.sticker
+            
+            # Определяем, лимитированный ли подарок
+            is_limited = gift.total_count is not None and gift.total_count > 0
+            remaining = gift.remaining_count if is_limited else None
+            sold_out = is_limited and remaining == 0
+            
+            # Генерируем название
+            if price in GIFT_EMOJIS:
+                idx = used_emojis.get(price, 0)
+                emojis = GIFT_EMOJIS[price]
+                emoji = emojis[idx % len(emojis)]
+                title = f"{emoji} Подарок {price}"
+                used_emojis[price] = idx + 1
+            else:
+                title = f"🎁 Подарок {price}⭐"
+            
+            # Получаем URL стикера
+            sticker_url = None
+            thumbnail_url = None
+            sticker_type = "static"
+            
+            try:
+                if sticker.is_video:
+                    sticker_type = "video"
+                elif sticker.is_animated:
+                    sticker_type = "animated"
+                
+                file = await bot.get_file(sticker.file_id)
+                sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+                
+                if sticker.thumbnail:
+                    thumb_file = await bot.get_file(sticker.thumbnail.file_id)
+                    thumbnail_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{thumb_file.file_path}"
+            except Exception as e:
+                print(f"⚠️ Не удалось получить файл для {gift_id}: {e}")
+            
+            gifts_data[gift_id] = {
+                "telegram_gift_id": gift_id,
+                "title": title,
+                "price": price,
+                "star_cost": price,
+                "sticker_url": sticker_url,
+                "thumbnail_url": thumbnail_url,
+                "sticker_type": sticker_type,
+                "is_limited": is_limited,
+                "total_count": gift.total_count,
+                "remaining_count": remaining,
+                "sold_out": sold_out,
+            }
+            
+            # Ищем самый дешёвый для pity reward
+            if price < cheapest_price and not sold_out:
+                cheapest_price = price
+                cheapest_gift_id = gift_id
+        
+        GIFTS = gifts_data
+        PITY_REWARD_GIFT = cheapest_gift_id
+        
+        print(f"✅ Загружено {len(GIFTS)} подарков!")
+        print(f"🎁 Pity reward: {PITY_REWARD_GIFT} ({cheapest_price}⭐)")
+        
+        # Статистика
+        limited_count = sum(1 for g in GIFTS.values() if g["is_limited"])
+        print(f"📊 Лимитированных: {limited_count}, Обычных: {len(GIFTS) - limited_count}")
+        
         return True
+        
     except Exception as e:
         print(f"❌ Ошибка загрузки подарков: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
 async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> tuple[bool, str]:
     gift = GIFTS.get(gift_id)
-    if not gift or not gift.get("telegram_gift_id"):
+    if not gift:
         return False, "Подарок не найден"
+    
+    if gift.get("sold_out"):
+        return False, "Подарок закончился"
+    
+    telegram_id = gift.get("telegram_gift_id", gift_id)
+    
     try:
-        await bot.send_gift(user_id=user_id, gift_id=gift["telegram_gift_id"], text=text or gift["title"])
+        await bot.send_gift(user_id=user_id, gift_id=telegram_id, text=text or gift["title"])
         return True, "OK"
     except Exception as e:
         msg = str(e)
-        if "DISALLOWED" in msg:
+        if "DISALLOWED" in msg.upper():
             return False, "🔒 Включи получение подарков"
+        if "GIFT_SOLD_OUT" in msg.upper():
+            # Обновляем статус
+            if gift_id in GIFTS:
+                GIFTS[gift_id]["sold_out"] = True
+                GIFTS[gift_id]["remaining_count"] = 0
+            return False, "😔 Подарок закончился"
         return False, msg[:80]
+
+
+def get_available_gifts_for_case(category: str = "all") -> list:
+    """Получить доступные подарки для кейса"""
+    available = []
+    for gid, g in GIFTS.items():
+        if g.get("sold_out"):
+            continue
+        available.append({"id": gid, **g})
+    
+    # Сортируем по цене
+    available.sort(key=lambda x: x["price"])
+    return available
 
 
 def roll_case(case_id: str, user_id: int = None) -> dict:
@@ -685,23 +765,43 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
     if not case:
         return {"type": "nothing", "items": [], "multiplier": 1}
     
+    # Stars кейсы
     if case.get("type") == "stars":
-        winnable = [d for d in case["drops"] if d.get("can_win")]
+        drops = case.get("drops", [])
         roll = random.random()
         cum = 0
-        for d in winnable:
+        for d in drops:
             cum += d["chance"]
             if roll < cum:
-                return {"type": "stars", "stars_won": d["stars"], "all_drops": case["drops"]}
-        return {"type": "stars", "stars_won": winnable[0]["stars"], "all_drops": case["drops"]}
+                return {"type": "stars", "stars_won": d["stars"], "all_drops": drops}
+        return {"type": "stars", "stars_won": drops[0]["stars"] if drops else 50, "all_drops": drops}
     
+    # Pity кейсы (дешёвые)
     if case.get("pity_enabled") and user_id:
         new_spent = add_pity_spent(user_id, case["price"])
-        if new_spent >= PITY_THRESHOLD:
+        if new_spent >= PITY_THRESHOLD and PITY_REWARD_GIFT:
             reset_pity(user_id)
-            return {"type": "gift", "items": [PITY_REWARD_GIFT], "multiplier": 1, "pity_triggered": True, "pity_progress": 0}
+            return {
+                "type": "gift", 
+                "items": [PITY_REWARD_GIFT], 
+                "multiplier": 1, 
+                "pity_triggered": True, 
+                "pity_progress": 0
+            }
         return {"type": "nothing", "items": [], "multiplier": 1, "pity_progress": new_spent}
     
+    # Обычные кейсы с подарками
+    available_gifts = get_available_gifts_for_case()
+    if not available_gifts:
+        return {"type": "nothing", "items": [], "multiplier": 1}
+    
+    # Фильтруем по цене кейса
+    case_price = case["price"]
+    suitable_gifts = [g for g in available_gifts if g["price"] <= case_price]
+    if not suitable_gifts:
+        suitable_gifts = available_gifts[:5]  # Берём 5 самых дешёвых
+    
+    # Мультипликатор
     mult_info = case.get("multiplier")
     count = 1
     if mult_info and mult_info.get("enabled"):
@@ -713,21 +813,21 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
                 count = opt["count"]
                 break
     
+    # Роллим подарки
     won = []
     for _ in range(count):
-        roll = random.random()
-        cum = 0
-        result = "nothing"
-        for d in case["drops"]:
-            cum += d["chance"]
-            if roll < cum:
-                result = d["gift_id"]
-                break
-        if result != "nothing":
-            won.append(result)
+        # Шанс ничего не выиграть зависит от категории
+        nothing_chance = 0.30 if case.get("category") == "gifts" else 0.05
+        if random.random() < nothing_chance:
+            continue
+        
+        # Выбираем случайный подарок
+        gift = random.choice(suitable_gifts)
+        won.append(gift["id"])
     
     if not won:
         return {"type": "nothing", "items": [], "multiplier": count}
+    
     return {"type": "gift", "items": won, "multiplier": count}
 
 
@@ -771,7 +871,10 @@ async def successful_payment(message: Message):
             return
         
         if item_type == "gift":
-            gift = GIFTS[payload["id"]]
+            gift = GIFTS.get(payload["id"])
+            if not gift:
+                await message.answer("⚠️ Подарок не найден")
+                return
             text = format_gift_text(payload.get("sender"), buyer_username)
             success, error = await send_real_gift(buyer_id, payload["id"], text)
             save_purchase(buyer_id, {"type": "gift", "gift_id": payload["id"], "paid": total})
@@ -779,7 +882,10 @@ async def successful_payment(message: Message):
             return
         
         if item_type == "case":
-            case = CASES[payload["id"]]
+            case = CASES.get(payload["id"])
+            if not case:
+                await message.answer("⚠️ Кейс не найден")
+                return
             result = roll_case(payload["id"], buyer_id)
             if payment_id:
                 save_pending_result(payment_id, result)
@@ -789,13 +895,15 @@ async def successful_payment(message: Message):
                 await message.answer(f"⭐ +{result['stars_won']}⭐!", parse_mode=ParseMode.HTML)
             elif result["type"] == "nothing":
                 pity = result.get("pity_progress", 0)
-                text = f"😔 Ничего..." + (f"\n📊 До гарантии: {PITY_THRESHOLD - pity}⭐" if pity else "")
+                text = f"😔 Ничего..." + (f"\n📊 Продолжая крутить вам выпадет гарантированный подарок!" if pity else "")
                 await message.answer(text)
             else:
                 for gid in result["items"]:
+                    gift = GIFTS.get(gid)
                     await send_real_gift(buyer_id, gid, f"Из {case['title']}")
                     await asyncio.sleep(0.2)
-                await message.answer(f"🎉 {GIFTS[result['items'][0]]['title']}!")
+                first_gift = GIFTS.get(result["items"][0], {})
+                await message.answer(f"🎉 {first_gift.get('title', 'Подарок')}!")
             
             save_purchase(buyer_id, {"type": "case", "case_id": payload["id"], "paid": total})
     except Exception as e:
@@ -817,6 +925,18 @@ async def keep_alive():
             await asyncio.sleep(240)
 
 
+# ===== Периодическое обновление подарков =====
+async def refresh_gifts_periodically():
+    """Обновляем подарки каждые 10 минут"""
+    await asyncio.sleep(60)  # Первый раз через минуту
+    while True:
+        try:
+            await load_telegram_gifts()
+        except Exception as e:
+            print(f"⚠️ Ошибка обновления подарков: {e}")
+        await asyncio.sleep(600)  # Каждые 10 минут
+
+
 # ===== FastAPI =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -826,6 +946,7 @@ async def lifespan(app: FastAPI):
     await asyncio.sleep(1)
     asyncio.create_task(dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()))
     asyncio.create_task(keep_alive())
+    asyncio.create_task(refresh_gifts_periodically())
     print("✅ Готово!")
     yield
     print("👋 Стоп")
@@ -958,18 +1079,50 @@ async def api_get_news():
 
 @app.get("/api/get-gifts")
 async def api_get_gifts():
+    """Возвращает все подарки с информацией о лимитах"""
+    gifts_list = []
+    for gid, g in GIFTS.items():
+        gifts_list.append({
+            "id": gid,
+            "title": g["title"],
+            "price": g["price"],
+            "sticker_url": g.get("sticker_url"),
+            "thumbnail_url": g.get("thumbnail_url"),
+            "sticker_type": g.get("sticker_type", "static"),
+            "is_limited": g.get("is_limited", False),
+            "remaining": g.get("remaining_count"),
+            "total": g.get("total_count"),
+            "sold_out": g.get("sold_out", False),
+        })
+    
+    # Сортируем: сначала обычные, потом лимитированные, по цене
+    gifts_list.sort(key=lambda x: (x["sold_out"], x["is_limited"], x["price"]))
+    
     return {
-        "gifts": [{"id": gid, "title": g["title"], "price": g["price"], "gif_url": g["gif_url"]} for gid, g in GIFTS.items()],
-        "sales": get_sales()
+        "gifts": gifts_list,
+        "sales": get_sales(),
+        "total_count": len(gifts_list),
+        "limited_count": sum(1 for g in gifts_list if g["is_limited"]),
     }
 
 
 @app.get("/api/get-cases")
 async def api_get_cases():
-    categories = {"cheap": {"title": "💰 Дешёвые", "cases": []}, "gifts": {"title": "🎁 Подарки", "cases": []}, "stars": {"title": "⭐ Stars", "cases": []}}
+    categories = {
+        "cheap": {"title": "💰 Дешёвые", "cases": []}, 
+        "gifts": {"title": "🎁 Подарки", "cases": []}, 
+        "stars": {"title": "⭐ Stars", "cases": []}
+    }
     for cid, c in CASES.items():
         cat = c.get("category", "gifts")
-        data = {"id": cid, "title": c["title"], "price": c["price"], "category": cat, "type": c.get("type"), "pity_enabled": c.get("pity_enabled", False)}
+        data = {
+            "id": cid, 
+            "title": c["title"], 
+            "price": c["price"], 
+            "category": cat, 
+            "type": c.get("type"), 
+            "pity_enabled": c.get("pity_enabled", False)
+        }
         if cat in categories:
             categories[cat]["cases"].append(data)
     return {"categories": categories, "pityThreshold": PITY_THRESHOLD}
@@ -989,6 +1142,8 @@ async def create_invoice(req: InvoiceReq):
     
     if req.giftId and req.giftId in GIFTS:
         gift = GIFTS[req.giftId]
+        if gift.get("sold_out"):
+            raise HTTPException(400, "Подарок закончился")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
         link = await bot.create_invoice_link(
             title=gift["title"], description=gift["title"],
@@ -1022,6 +1177,14 @@ async def api_get_case_result(req: GetResultReq):
     uid = auth["user"]["id"]
     result["newBalance"] = get_star_balance(uid)
     result["pitySpent"] = get_pity_spent(uid)
+    
+    # Добавляем информацию о выигранных подарках
+    if result.get("items"):
+        result["won"] = [
+            {"id": gid, "title": GIFTS.get(gid, {}).get("title", "Подарок"), "price": GIFTS.get(gid, {}).get("price", 0)}
+            for gid in result["items"]
+        ]
+    
     return result
 
 
@@ -1040,6 +1203,8 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
     
     if req.giftId and req.giftId in GIFTS:
         gift = GIFTS[req.giftId]
+        if gift.get("sold_out"):
+            raise HTTPException(400, "Подарок закончился")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
         if balance < price:
             raise HTTPException(400, f"Нужно {price}⭐")
@@ -1072,12 +1237,20 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
         
         sent = []
         for gid in result["items"]:
+            gift = GIFTS.get(gid, {})
             ok, _ = await send_real_gift(uid, gid, f"Из {case['title']}")
             if ok:
-                sent.append({"id": gid, "title": GIFTS[gid]["title"]})
+                sent.append({"id": gid, "title": gift.get("title", "Подарок")})
             await asyncio.sleep(0.2)
         
-        return {"success": True, "type": "gifts", "won": sent, "multiplier": result["multiplier"], "newBalance": get_star_balance(uid)}
+        return {
+            "success": True, 
+            "type": "gifts", 
+            "won": sent, 
+            "multiplier": result["multiplier"], 
+            "newBalance": get_star_balance(uid),
+            "pityTriggered": result.get("pity_triggered", False)
+        }
     
     raise HTTPException(400, "Не указан товар")
 
@@ -1135,8 +1308,11 @@ async def api_activate_promocode(req: PromocodeReq):
     if rt == "gift":
         gift = GIFTS.get(ri)
         if gift:
-            await send_real_gift(uid, ri, f"🎟 {code}")
-            return {"success": True, "reward": gift["title"]}
+            success, error = await send_real_gift(uid, ri, f"🎟 {code}")
+            if success:
+                return {"success": True, "reward": gift["title"]}
+            else:
+                return {"success": False, "error": error}
     
     if rt == "case":
         result = roll_case(ri, uid)
@@ -1151,7 +1327,18 @@ async def api_admin_get_promocodes(req: InitDataReq):
     if not auth or not is_admin(auth["user"]["id"]):
         raise HTTPException(403, "Admin only")
     
-    return {"promocodes": [{"code": c, **p} for c, p in get_promocodes().items()]}
+    promos = []
+    for code, p in get_promocodes().items():
+        promos.append({
+            "code": code,
+            "rewardType": p.get("reward_type", ""),
+            "rewardId": p.get("reward_id", ""),
+            "maxUses": p.get("max_uses", 0),
+            "uses": p.get("uses", 0),
+            "created": p.get("created", ""),
+        })
+    
+    return {"promocodes": promos}
 
 
 @app.post("/api/admin/create-promocode")
@@ -1161,9 +1348,15 @@ async def api_admin_create_promocode(req: CreatePromocodeReq):
         raise HTTPException(403, "Admin only")
     
     code = req.code.strip().upper()
+    if not code:
+        raise HTTPException(400, "Код не указан")
+    
     save_promocode(code, {
-        "reward_type": req.rewardType, "reward_id": req.rewardId,
-        "max_uses": req.maxUses, "uses": 0, "used_by": [],
+        "reward_type": req.rewardType,
+        "reward_id": req.rewardId,
+        "max_uses": req.maxUses,
+        "uses": 0,
+        "used_by": [],
         "created": datetime.now().isoformat()
     })
     return {"success": True, "code": code}
@@ -1179,9 +1372,23 @@ async def api_admin_delete_promocode(req: DeletePromocodeReq):
     return {"success": True}
 
 
+@app.get("/api/admin/get-gifts-list")
+async def api_admin_get_gifts_list():
+    """Список подарков для админки"""
+    return {
+        "gifts": [
+            {"id": gid, "title": g["title"], "price": g["price"], "is_limited": g.get("is_limited", False)}
+            for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"])
+        ],
+        "cases": [
+            {"id": cid, "title": c["title"], "price": c["price"]}
+            for cid, c in CASES.items()
+        ]
+    }
+
+
 @app.get("/api/clear-cache")
 async def clear_cache():
-    """Сбросить кэш"""
     CACHE["settings_time"] = 0
     CACHE["news_time"] = 0
     CACHE["sales_time"] = 0
@@ -1190,30 +1397,30 @@ async def clear_cache():
     return {"status": "cache cleared"}
 
 
-@app.get("/api/debug-settings")
-async def debug_settings():
-    """Отладка настроек"""
+@app.get("/api/refresh-gifts")
+async def refresh_gifts():
+    """Принудительное обновление подарков"""
+    success = await load_telegram_gifts()
     return {
-        "cache": CACHE.get("settings", {}),
-        "cache_age": time.time() - CACHE.get("settings_time", 0),
-        "maintenance": is_maintenance_enabled(),
-        "maintenance_text": get_maintenance_text()
+        "success": success,
+        "gifts_count": len(GIFTS),
+        "limited_count": sum(1 for g in GIFTS.values() if g.get("is_limited"))
     }
-
-
-@app.get("/api/test-channels")
-async def test_channels():
-    return {"channels": REQUIRED_CHANNELS, "count": len(REQUIRED_CHANNELS)}
 
 
 @app.get("/")
 async def root():
-    return {"app": "Подарочница v7.2", "status": "running"}
+    return {
+        "app": "Подарочница v8.0",
+        "status": "running",
+        "gifts_loaded": len(GIFTS),
+        "pity_reward": PITY_REWARD_GIFT
+    }
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "time": datetime.now().isoformat()}
+    return {"status": "ok", "time": datetime.now().isoformat(), "gifts": len(GIFTS)}
 
 
 if __name__ == "__main__":
