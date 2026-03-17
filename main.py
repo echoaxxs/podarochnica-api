@@ -27,7 +27,7 @@ from pydantic import BaseModel
 import uvicorn
 
 print("=" * 50)
-print("🚀 ПОДАРОЧНИЦА v8.0 — АВТОЗАГРУЗКА ПОДАРКОВ")
+print("🚀 ПОДАРОЧНИЦА v9.0 — HARDCODED GIFTS")
 print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
@@ -39,7 +39,6 @@ GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
 
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
 
-# ===== ПАРСИНГ КАНАЛОВ =====
 REQUIRED_CHANNELS_RAW = os.getenv("REQUIRED_CHANNELS", "")
 REQUIRED_CHANNELS = []
 CHANNEL_LINKS = {}
@@ -55,27 +54,236 @@ for item in REQUIRED_CHANNELS_RAW.split(","):
     if invite_link:
         CHANNEL_LINKS[channel_id] = invite_link
 
-print(f"📋 REQUIRED_CHANNELS: {REQUIRED_CHANNELS}")
-
 SENDERS = ["@echoaxxs", "@bogclm", "@bogclm и @echoaxxs"]
 SIGNATURE_COSTS = {"@echoaxxs": 2, "@bogclm": 2, "@bogclm и @echoaxxs": 5}
 
 PITY_THRESHOLD = 20
-PITY_REWARD_GIFT = None  # Будет установлен после загрузки подарков
 
-# ===== ПОДАРКИ (автозагрузка) =====
-GIFTS = {}  # Заполняется автоматически из Telegram API
+# ===== TWEMOJI CDN для иконок =====
+TWEMOJI_BASE = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg"
 
-# Кастомные эмодзи по цене для названий
-GIFT_EMOJIS = {
-    15: ["❤️", "🧸", "🌸", "🍬", "🎀"],
-    25: ["🌹", "🎁", "🍫", "🎈", "🌺"],
-    50: ["💐", "🧁", "🍷", "🚀", "🎂"],
-    100: ["💍", "🏆", "💎", "👑", "🌟"],
-    250: ["🔥", "⚡", "🎭", "🦋", "🌈"],
-    500: ["💫", "🎪", "🦄", "🌙", "✨"],
-    1000: ["🏅", "🎖️", "💠", "🔮", "🌠"],
+# ===== ЗАХАРДКОЖЕННЫЕ ПОДАРКИ =====
+# Названия + иконки (Twemoji SVG)
+HARDCODED_GIFTS = {
+    # 15 Stars
+    "heart": {
+        "title": "Сердце",
+        "price": 15,
+        "emoji": "❤️",
+        "icon": f"{TWEMOJI_BASE}/2764.svg",
+        "color": "#e74c3c"
+    },
+    "bear": {
+        "title": "Мишка",
+        "price": 15,
+        "emoji": "🧸",
+        "icon": f"{TWEMOJI_BASE}/1f9f8.svg",
+        "color": "#a0522d"
+    },
+    "candy": {
+        "title": "Конфета",
+        "price": 15,
+        "emoji": "🍬",
+        "icon": f"{TWEMOJI_BASE}/1f36c.svg",
+        "color": "#ff6b9d"
+    },
+    "lollipop": {
+        "title": "Леденец",
+        "price": 15,
+        "emoji": "🍭",
+        "icon": f"{TWEMOJI_BASE}/1f36d.svg",
+        "color": "#ff69b4"
+    },
+    
+    # 25 Stars
+    "rose": {
+        "title": "Роза",
+        "price": 25,
+        "emoji": "🌹",
+        "icon": f"{TWEMOJI_BASE}/1f339.svg",
+        "color": "#e74c3c"
+    },
+    "gift_box": {
+        "title": "Подарок",
+        "price": 25,
+        "emoji": "🎁",
+        "icon": f"{TWEMOJI_BASE}/1f381.svg",
+        "color": "#e74c3c"
+    },
+    "chocolate": {
+        "title": "Шоколад",
+        "price": 25,
+        "emoji": "🍫",
+        "icon": f"{TWEMOJI_BASE}/1f36b.svg",
+        "color": "#8b4513"
+    },
+    "balloon": {
+        "title": "Шарик",
+        "price": 25,
+        "emoji": "🎈",
+        "icon": f"{TWEMOJI_BASE}/1f388.svg",
+        "color": "#e74c3c"
+    },
+    
+    # 50 Stars
+    "bouquet": {
+        "title": "Букет",
+        "price": 50,
+        "emoji": "💐",
+        "icon": f"{TWEMOJI_BASE}/1f490.svg",
+        "color": "#ff69b4"
+    },
+    "cake": {
+        "title": "Торт",
+        "price": 50,
+        "emoji": "🎂",
+        "icon": f"{TWEMOJI_BASE}/1f382.svg",
+        "color": "#ff69b4"
+    },
+    "cupcake": {
+        "title": "Капкейк",
+        "price": 50,
+        "emoji": "🧁",
+        "icon": f"{TWEMOJI_BASE}/1f9c1.svg",
+        "color": "#ff69b4"
+    },
+    "wine": {
+        "title": "Вино",
+        "price": 50,
+        "emoji": "🍷",
+        "icon": f"{TWEMOJI_BASE}/1f377.svg",
+        "color": "#722f37"
+    },
+    "rocket": {
+        "title": "Ракета",
+        "price": 50,
+        "emoji": "🚀",
+        "icon": f"{TWEMOJI_BASE}/1f680.svg",
+        "color": "#3498db"
+    },
+    "champagne": {
+        "title": "Шампанское",
+        "price": 50,
+        "emoji": "🍾",
+        "icon": f"{TWEMOJI_BASE}/1f37e.svg",
+        "color": "#f1c40f"
+    },
+    
+    # 100 Stars
+    "ring": {
+        "title": "Кольцо",
+        "price": 100,
+        "emoji": "💍",
+        "icon": f"{TWEMOJI_BASE}/1f48d.svg",
+        "color": "#f1c40f"
+    },
+    "trophy": {
+        "title": "Кубок",
+        "price": 100,
+        "emoji": "🏆",
+        "icon": f"{TWEMOJI_BASE}/1f3c6.svg",
+        "color": "#f1c40f"
+    },
+    "diamond": {
+        "title": "Алмаз",
+        "price": 100,
+        "emoji": "💎",
+        "icon": f"{TWEMOJI_BASE}/1f48e.svg",
+        "color": "#3498db"
+    },
+    "crown": {
+        "title": "Корона",
+        "price": 100,
+        "emoji": "👑",
+        "icon": f"{TWEMOJI_BASE}/1f451.svg",
+        "color": "#f1c40f"
+    },
+    "star_struck": {
+        "title": "Звезда",
+        "price": 100,
+        "emoji": "🌟",
+        "icon": f"{TWEMOJI_BASE}/1f31f.svg",
+        "color": "#f1c40f"
+    },
+    
+    # 250 Stars (Premium)
+    "fire": {
+        "title": "Огонь",
+        "price": 250,
+        "emoji": "🔥",
+        "icon": f"{TWEMOJI_BASE}/1f525.svg",
+        "color": "#e74c3c",
+        "is_limited": True
+    },
+    "lightning": {
+        "title": "Молния",
+        "price": 250,
+        "emoji": "⚡",
+        "icon": f"{TWEMOJI_BASE}/26a1.svg",
+        "color": "#f1c40f",
+        "is_limited": True
+    },
+    "unicorn": {
+        "title": "Единорог",
+        "price": 250,
+        "emoji": "🦄",
+        "icon": f"{TWEMOJI_BASE}/1f984.svg",
+        "color": "#9b59b6",
+        "is_limited": True
+    },
+    
+    # 500 Stars (Ultra)
+    "crystal_ball": {
+        "title": "Магический шар",
+        "price": 500,
+        "emoji": "🔮",
+        "icon": f"{TWEMOJI_BASE}/1f52e.svg",
+        "color": "#9b59b6",
+        "is_limited": True
+    },
+    "rainbow": {
+        "title": "Радуга",
+        "price": 500,
+        "emoji": "🌈",
+        "icon": f"{TWEMOJI_BASE}/1f308.svg",
+        "color": "#e74c3c",
+        "is_limited": True
+    },
+    "sparkles": {
+        "title": "Искры",
+        "price": 500,
+        "emoji": "✨",
+        "icon": f"{TWEMOJI_BASE}/2728.svg",
+        "color": "#f1c40f",
+        "is_limited": True
+    },
+    
+    # 1000 Stars (Legendary)
+    "gem_stone": {
+        "title": "Драгоценность",
+        "price": 1000,
+        "emoji": "💠",
+        "icon": f"{TWEMOJI_BASE}/1f4a0.svg",
+        "color": "#3498db",
+        "is_limited": True
+    },
+    "shooting_star": {
+        "title": "Комета",
+        "price": 1000,
+        "emoji": "🌠",
+        "icon": f"{TWEMOJI_BASE}/1f320.svg",
+        "color": "#9b59b6",
+        "is_limited": True
+    },
 }
+
+# Маппинг Telegram Gift ID -> наш ID (заполнится автоматически)
+TELEGRAM_GIFT_MAP = {}
+
+# Активные подарки (с telegram_gift_id)
+GIFTS = {}
+
+PITY_REWARD_GIFT = "heart"
 
 # ===== КЕЙСЫ =====
 CASES = {
@@ -622,95 +830,78 @@ async def check_subscription(user_id: int) -> dict:
 
 
 async def load_telegram_gifts():
-    """Автоматическая загрузка подарков из Telegram API"""
-    global GIFTS, PITY_REWARD_GIFT
+    """Загружаем подарки из Telegram и сопоставляем с нашими"""
+    global GIFTS, TELEGRAM_GIFT_MAP
     
     try:
         available = await bot.get_available_gifts()
         if not available or not available.gifts:
-            print("❌ Нет доступных подарков в Telegram")
+            print("❌ Нет доступных подарков в Telegram API")
+            # Используем захардкоженные без telegram_gift_id
+            for gid, gdata in HARDCODED_GIFTS.items():
+                GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": False}
             return False
         
-        print(f"📦 Найдено {len(available.gifts)} подарков в Telegram API")
+        print(f"📦 Telegram API: {len(available.gifts)} подарков")
         
-        # Группируем по цене для назначения названий
+        # Группируем по цене
         by_price = {}
         for gift in available.gifts:
             by_price.setdefault(gift.star_count, []).append(gift)
         
-        gifts_data = {}
-        used_emojis = {price: 0 for price in GIFT_EMOJIS}
-        cheapest_gift_id = None
-        cheapest_price = float('inf')
+        # Сопоставляем наши подарки с Telegram
+        used_telegram_ids = set()
         
-        for gift in available.gifts:
-            gift_id = gift.id
-            price = gift.star_count
-            sticker = gift.sticker
+        for gid, gdata in HARDCODED_GIFTS.items():
+            price = gdata["price"]
             
-            # Определяем, лимитированный ли подарок
-            is_limited = gift.total_count is not None and gift.total_count > 0
-            remaining = gift.remaining_count if is_limited else None
-            sold_out = is_limited and remaining == 0
-            
-            # Генерируем название
-            if price in GIFT_EMOJIS:
-                idx = used_emojis.get(price, 0)
-                emojis = GIFT_EMOJIS[price]
-                emoji = emojis[idx % len(emojis)]
-                title = f"{emoji} Подарок {price}"
-                used_emojis[price] = idx + 1
+            # Ищем подарок с такой ценой
+            if price in by_price:
+                for tg_gift in by_price[price]:
+                    if tg_gift.id not in used_telegram_ids:
+                        # Нашли!
+                        used_telegram_ids.add(tg_gift.id)
+                        
+                        is_limited = tg_gift.total_count is not None and tg_gift.total_count > 0
+                        sold_out = is_limited and (tg_gift.remaining_count or 0) == 0
+                        
+                        GIFTS[gid] = {
+                            **gdata,
+                            "id": gid,
+                            "telegram_gift_id": tg_gift.id,
+                            "is_limited": is_limited or gdata.get("is_limited", False),
+                            "total_count": tg_gift.total_count,
+                            "remaining_count": tg_gift.remaining_count,
+                            "sold_out": sold_out,
+                        }
+                        TELEGRAM_GIFT_MAP[tg_gift.id] = gid
+                        break
+                else:
+                    # Не нашли с такой ценой — ищем ближайшую
+                    closest = min(by_price.keys(), key=lambda x: abs(x - price))
+                    for tg_gift in by_price[closest]:
+                        if tg_gift.id not in used_telegram_ids:
+                            used_telegram_ids.add(tg_gift.id)
+                            GIFTS[gid] = {
+                                **gdata,
+                                "id": gid,
+                                "telegram_gift_id": tg_gift.id,
+                                "price": closest,  # Обновляем цену
+                                "is_limited": gdata.get("is_limited", False),
+                                "sold_out": False,
+                            }
+                            TELEGRAM_GIFT_MAP[tg_gift.id] = gid
+                            break
             else:
-                title = f"🎁 Подарок {price}⭐"
-            
-            # Получаем URL стикера
-            sticker_url = None
-            thumbnail_url = None
-            sticker_type = "static"
-            
-            try:
-                if sticker.is_video:
-                    sticker_type = "video"
-                elif sticker.is_animated:
-                    sticker_type = "animated"
-                
-                file = await bot.get_file(sticker.file_id)
-                sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-                
-                if sticker.thumbnail:
-                    thumb_file = await bot.get_file(sticker.thumbnail.file_id)
-                    thumbnail_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{thumb_file.file_path}"
-            except Exception as e:
-                print(f"⚠️ Не удалось получить файл для {gift_id}: {e}")
-            
-            gifts_data[gift_id] = {
-                "telegram_gift_id": gift_id,
-                "title": title,
-                "price": price,
-                "star_cost": price,
-                "sticker_url": sticker_url,
-                "thumbnail_url": thumbnail_url,
-                "sticker_type": sticker_type,
-                "is_limited": is_limited,
-                "total_count": gift.total_count,
-                "remaining_count": remaining,
-                "sold_out": sold_out,
-            }
-            
-            # Ищем самый дешёвый для pity reward
-            if price < cheapest_price and not sold_out:
-                cheapest_price = price
-                cheapest_gift_id = gift_id
+                # Нет подарков с такой ценой — используем без telegram_gift_id
+                GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": True}
         
-        GIFTS = gifts_data
-        PITY_REWARD_GIFT = cheapest_gift_id
+        print(f"✅ Сопоставлено {len([g for g in GIFTS.values() if g.get('telegram_gift_id')])} подарков")
         
-        print(f"✅ Загружено {len(GIFTS)} подарков!")
-        print(f"🎁 Pity reward: {PITY_REWARD_GIFT} ({cheapest_price}⭐)")
-        
-        # Статистика
-        limited_count = sum(1 for g in GIFTS.values() if g["is_limited"])
-        print(f"📊 Лимитированных: {limited_count}, Обычных: {len(GIFTS) - limited_count}")
+        # Логируем
+        for gid, g in GIFTS.items():
+            status = "✓" if g.get("telegram_gift_id") else "✗"
+            print(f"  {status} {g['emoji']} {g['title']} ({g['price']}⭐)")
         
         return True
         
@@ -718,6 +909,10 @@ async def load_telegram_gifts():
         print(f"❌ Ошибка загрузки подарков: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Fallback: используем захардкоженные
+        for gid, gdata in HARDCODED_GIFTS.items():
+            GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": False}
         return False
 
 
@@ -726,38 +921,25 @@ async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None)
     if not gift:
         return False, "Подарок не найден"
     
+    telegram_id = gift.get("telegram_gift_id")
+    if not telegram_id:
+        return False, "Подарок недоступен"
+    
     if gift.get("sold_out"):
         return False, "Подарок закончился"
     
-    telegram_id = gift.get("telegram_gift_id", gift_id)
-    
     try:
-        await bot.send_gift(user_id=user_id, gift_id=telegram_id, text=text or gift["title"])
+        await bot.send_gift(user_id=user_id, gift_id=telegram_id, text=text or f"{gift['emoji']} {gift['title']}")
         return True, "OK"
     except Exception as e:
         msg = str(e)
         if "DISALLOWED" in msg.upper():
-            return False, "🔒 Включи получение подарков"
+            return False, "🔒 Включи получение подарков в настройках Telegram"
         if "GIFT_SOLD_OUT" in msg.upper():
-            # Обновляем статус
             if gift_id in GIFTS:
                 GIFTS[gift_id]["sold_out"] = True
-                GIFTS[gift_id]["remaining_count"] = 0
             return False, "😔 Подарок закончился"
         return False, msg[:80]
-
-
-def get_available_gifts_for_case(category: str = "all") -> list:
-    """Получить доступные подарки для кейса"""
-    available = []
-    for gid, g in GIFTS.items():
-        if g.get("sold_out"):
-            continue
-        available.append({"id": gid, **g})
-    
-    # Сортируем по цене
-    available.sort(key=lambda x: x["price"])
-    return available
 
 
 def roll_case(case_id: str, user_id: int = None) -> dict:
@@ -776,10 +958,10 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
                 return {"type": "stars", "stars_won": d["stars"], "all_drops": drops}
         return {"type": "stars", "stars_won": drops[0]["stars"] if drops else 50, "all_drops": drops}
     
-    # Pity кейсы (дешёвые)
+    # Pity кейсы
     if case.get("pity_enabled") and user_id:
         new_spent = add_pity_spent(user_id, case["price"])
-        if new_spent >= PITY_THRESHOLD and PITY_REWARD_GIFT:
+        if new_spent >= PITY_THRESHOLD:
             reset_pity(user_id)
             return {
                 "type": "gift", 
@@ -790,18 +972,16 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
             }
         return {"type": "nothing", "items": [], "multiplier": 1, "pity_progress": new_spent}
     
-    # Обычные кейсы с подарками
-    available_gifts = get_available_gifts_for_case()
-    if not available_gifts:
+    # Обычные кейсы
+    available = [gid for gid, g in GIFTS.items() if not g.get("sold_out") and g.get("telegram_gift_id")]
+    if not available:
         return {"type": "nothing", "items": [], "multiplier": 1}
     
-    # Фильтруем по цене кейса
     case_price = case["price"]
-    suitable_gifts = [g for g in available_gifts if g["price"] <= case_price]
-    if not suitable_gifts:
-        suitable_gifts = available_gifts[:5]  # Берём 5 самых дешёвых
+    suitable = [gid for gid in available if GIFTS[gid]["price"] <= case_price]
+    if not suitable:
+        suitable = available[:5]
     
-    # Мультипликатор
     mult_info = case.get("multiplier")
     count = 1
     if mult_info and mult_info.get("enabled"):
@@ -813,17 +993,13 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
                 count = opt["count"]
                 break
     
-    # Роллим подарки
     won = []
     for _ in range(count):
-        # Шанс ничего не выиграть зависит от категории
         nothing_chance = 0.30 if case.get("category") == "gifts" else 0.05
         if random.random() < nothing_chance:
             continue
-        
-        # Выбираем случайный подарок
-        gift = random.choice(suitable_gifts)
-        won.append(gift["id"])
+        gift_id = random.choice(suitable)
+        won.append(gift_id)
     
     if not won:
         return {"type": "nothing", "items": [], "multiplier": count}
@@ -878,7 +1054,7 @@ async def successful_payment(message: Message):
             text = format_gift_text(payload.get("sender"), buyer_username)
             success, error = await send_real_gift(buyer_id, payload["id"], text)
             save_purchase(buyer_id, {"type": "gift", "gift_id": payload["id"], "paid": total})
-            await message.answer(f"🎉 {gift['title']}!" if success else f"⚠️ {error}")
+            await message.answer(f"🎉 {gift['emoji']} {gift['title']}!" if success else f"⚠️ {error}")
             return
         
         if item_type == "case":
@@ -892,10 +1068,10 @@ async def successful_payment(message: Message):
             
             if result["type"] == "stars":
                 add_star_balance(buyer_id, result["stars_won"])
-                await message.answer(f"⭐ +{result['stars_won']}⭐!", parse_mode=ParseMode.HTML)
+                await message.answer(f"⭐ +{result['stars_won']} Stars!")
             elif result["type"] == "nothing":
                 pity = result.get("pity_progress", 0)
-                text = f"😔 Ничего..." + (f"\n📊 Продолжая крутить вам выпадет гарантированный подарок!" if pity else "")
+                text = f"😔 Ничего..." + (f"\n📊 До гарантии: {PITY_THRESHOLD - pity}⭐" if pity else "")
                 await message.answer(text)
             else:
                 for gid in result["items"]:
@@ -903,7 +1079,7 @@ async def successful_payment(message: Message):
                     await send_real_gift(buyer_id, gid, f"Из {case['title']}")
                     await asyncio.sleep(0.2)
                 first_gift = GIFTS.get(result["items"][0], {})
-                await message.answer(f"🎉 {first_gift.get('title', 'Подарок')}!")
+                await message.answer(f"🎉 {first_gift.get('emoji', '🎁')} {first_gift.get('title', 'Подарок')}!")
             
             save_purchase(buyer_id, {"type": "case", "case_id": payload["id"], "paid": total})
     except Exception as e:
@@ -925,16 +1101,14 @@ async def keep_alive():
             await asyncio.sleep(240)
 
 
-# ===== Периодическое обновление подарков =====
 async def refresh_gifts_periodically():
-    """Обновляем подарки каждые 10 минут"""
-    await asyncio.sleep(60)  # Первый раз через минуту
+    await asyncio.sleep(60)
     while True:
         try:
             await load_telegram_gifts()
         except Exception as e:
             print(f"⚠️ Ошибка обновления подарков: {e}")
-        await asyncio.sleep(600)  # Каждые 10 минут
+        await asyncio.sleep(600)
 
 
 # ===== FastAPI =====
@@ -1067,42 +1241,34 @@ async def api_get_user_data(req: InitDataReq):
     }
 
 
-@app.get("/api/get-settings")
-async def api_get_settings():
-    return {"maintenance": is_maintenance_enabled(), "maintenance_text": get_maintenance_text()}
-
-
-@app.get("/api/get-news")
-async def api_get_news():
-    return {"news": get_news()}
-
-
 @app.get("/api/get-gifts")
 async def api_get_gifts():
-    """Возвращает все подарки с информацией о лимитах"""
+    """Возвращает все подарки с иконками и названиями"""
     gifts_list = []
+    
     for gid, g in GIFTS.items():
         gifts_list.append({
             "id": gid,
             "title": g["title"],
+            "emoji": g["emoji"],
             "price": g["price"],
-            "sticker_url": g.get("sticker_url"),
-            "thumbnail_url": g.get("thumbnail_url"),
-            "sticker_type": g.get("sticker_type", "static"),
+            "icon": g["icon"],
+            "color": g.get("color", "#ffffff"),
             "is_limited": g.get("is_limited", False),
             "remaining": g.get("remaining_count"),
             "total": g.get("total_count"),
             "sold_out": g.get("sold_out", False),
+            "available": g.get("telegram_gift_id") is not None and not g.get("sold_out", False),
         })
     
-    # Сортируем: сначала обычные, потом лимитированные, по цене
-    gifts_list.sort(key=lambda x: (x["sold_out"], x["is_limited"], x["price"]))
+    # Сортируем: доступные первые, потом по цене
+    gifts_list.sort(key=lambda x: (not x["available"], x["sold_out"], x["is_limited"], x["price"]))
     
     return {
         "gifts": gifts_list,
         "sales": get_sales(),
         "total_count": len(gifts_list),
-        "limited_count": sum(1 for g in gifts_list if g["is_limited"]),
+        "available_count": sum(1 for g in gifts_list if g["available"]),
     }
 
 
@@ -1128,6 +1294,11 @@ async def api_get_cases():
     return {"categories": categories, "pityThreshold": PITY_THRESHOLD}
 
 
+@app.get("/api/get-news")
+async def api_get_news():
+    return {"news": get_news()}
+
+
 @app.post("/api/create-invoice")
 async def create_invoice(req: InvoiceReq):
     auth = validate_init_data(req.initData)
@@ -1142,11 +1313,12 @@ async def create_invoice(req: InvoiceReq):
     
     if req.giftId and req.giftId in GIFTS:
         gift = GIFTS[req.giftId]
-        if gift.get("sold_out"):
-            raise HTTPException(400, "Подарок закончился")
+        if gift.get("sold_out") or not gift.get("telegram_gift_id"):
+            raise HTTPException(400, "Подарок недоступен")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
         link = await bot.create_invoice_link(
-            title=gift["title"], description=gift["title"],
+            title=f"{gift['emoji']} {gift['title']}",
+            description=f"{gift['emoji']} {gift['title']}",
             payload=json.dumps({"type": "gift", "id": req.giftId, "sender": req.sender, "payment_id": payment_id}),
             currency="XTR", prices=[LabeledPrice(label=gift["title"], amount=price)]
         )
@@ -1178,10 +1350,15 @@ async def api_get_case_result(req: GetResultReq):
     result["newBalance"] = get_star_balance(uid)
     result["pitySpent"] = get_pity_spent(uid)
     
-    # Добавляем информацию о выигранных подарках
     if result.get("items"):
         result["won"] = [
-            {"id": gid, "title": GIFTS.get(gid, {}).get("title", "Подарок"), "price": GIFTS.get(gid, {}).get("price", 0)}
+            {
+                "id": gid, 
+                "title": GIFTS.get(gid, {}).get("title", "Подарок"),
+                "emoji": GIFTS.get(gid, {}).get("emoji", "🎁"),
+                "icon": GIFTS.get(gid, {}).get("icon", ""),
+                "price": GIFTS.get(gid, {}).get("price", 0)
+            }
             for gid in result["items"]
         ]
     
@@ -1203,8 +1380,8 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
     
     if req.giftId and req.giftId in GIFTS:
         gift = GIFTS[req.giftId]
-        if gift.get("sold_out"):
-            raise HTTPException(400, "Подарок закончился")
+        if gift.get("sold_out") or not gift.get("telegram_gift_id"):
+            raise HTTPException(400, "Подарок недоступен")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
         if balance < price:
             raise HTTPException(400, f"Нужно {price}⭐")
@@ -1217,7 +1394,12 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
             add_star_balance(uid, price)
             raise HTTPException(500, error)
         
-        return {"success": True, "type": "gift", "reward": gift["title"], "newBalance": get_star_balance(uid)}
+        return {
+            "success": True, 
+            "type": "gift", 
+            "reward": f"{gift['emoji']} {gift['title']}", 
+            "newBalance": get_star_balance(uid)
+        }
     
     if req.caseId and req.caseId in CASES:
         case = CASES[req.caseId]
@@ -1240,7 +1422,12 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
             gift = GIFTS.get(gid, {})
             ok, _ = await send_real_gift(uid, gid, f"Из {case['title']}")
             if ok:
-                sent.append({"id": gid, "title": gift.get("title", "Подарок")})
+                sent.append({
+                    "id": gid, 
+                    "title": gift.get("title", "Подарок"),
+                    "emoji": gift.get("emoji", "🎁"),
+                    "icon": gift.get("icon", ""),
+                })
             await asyncio.sleep(0.2)
         
         return {
@@ -1307,16 +1494,15 @@ async def api_activate_promocode(req: PromocodeReq):
     
     if rt == "gift":
         gift = GIFTS.get(ri)
-        if gift:
+        if gift and gift.get("telegram_gift_id"):
             success, error = await send_real_gift(uid, ri, f"🎟 {code}")
             if success:
-                return {"success": True, "reward": gift["title"]}
-            else:
-                return {"success": False, "error": error}
+                return {"success": True, "reward": f"{gift['emoji']} {gift['title']}"}
+            return {"success": False, "error": error}
     
     if rt == "case":
         result = roll_case(ri, uid)
-        return {"success": True, "reward": f"Кейс", "caseResult": result}
+        return {"success": True, "reward": "Кейс открыт!", "caseResult": result}
     
     return {"success": True, "reward": "OK"}
 
@@ -1377,7 +1563,13 @@ async def api_admin_get_gifts_list():
     """Список подарков для админки"""
     return {
         "gifts": [
-            {"id": gid, "title": g["title"], "price": g["price"], "is_limited": g.get("is_limited", False)}
+            {
+                "id": gid, 
+                "title": f"{g['emoji']} {g['title']}", 
+                "price": g["price"], 
+                "is_limited": g.get("is_limited", False),
+                "available": g.get("telegram_gift_id") is not None
+            }
             for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"])
         ],
         "cases": [
@@ -1387,34 +1579,23 @@ async def api_admin_get_gifts_list():
     }
 
 
-@app.get("/api/clear-cache")
-async def clear_cache():
-    CACHE["settings_time"] = 0
-    CACHE["news_time"] = 0
-    CACHE["sales_time"] = 0
-    CACHE["promocodes_time"] = 0
-    _load_all_cache()
-    return {"status": "cache cleared"}
-
-
 @app.get("/api/refresh-gifts")
 async def refresh_gifts():
-    """Принудительное обновление подарков"""
     success = await load_telegram_gifts()
     return {
         "success": success,
         "gifts_count": len(GIFTS),
-        "limited_count": sum(1 for g in GIFTS.values() if g.get("is_limited"))
+        "available_count": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
     }
 
 
 @app.get("/")
 async def root():
     return {
-        "app": "Подарочница v8.0",
+        "app": "Подарочница v9.0",
         "status": "running",
         "gifts_loaded": len(GIFTS),
-        "pity_reward": PITY_REWARD_GIFT
+        "gifts_available": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
     }
 
 
