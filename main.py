@@ -1080,7 +1080,25 @@ async def api_admin_delete_promocode(req: DeletePromocodeReq):
 
 @app.get("/api/admin/get-gifts-list")
 async def api_admin_get_gifts_list():
-    return {"gifts": [{"id": gid, "title": f"{g.get('emoji', '🎁')} {g.get('title') or f'Подарок {g[\"price\"]}⭐'}", "price": g["price"], "available": g.get("telegram_gift_id") is not None} for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"])], "cases": [{"id": cid, "title": c["title"], "price": c["price"]} for cid, c in CASES.items()]}
+    gifts_list = []
+    for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"]):
+        price = g["price"]
+        emoji = g.get("emoji", "🎁")
+        title = g.get("title") or f"Подарок {price}⭐"
+        display = f"{emoji} {title}"
+        gifts_list.append({
+            "id": gid,
+            "title": display,
+            "price": price,
+            "available": g.get("telegram_gift_id") is not None
+        })
+    
+    cases_list = [
+        {"id": cid, "title": c["title"], "price": c["price"]}
+        for cid, c in CASES.items()
+    ]
+    
+    return {"gifts": gifts_list, "cases": cases_list}
 
 
 @app.get("/api/refresh-gifts")
