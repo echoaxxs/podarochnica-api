@@ -27,7 +27,7 @@ from pydantic import BaseModel
 import uvicorn
 
 print("=" * 50)
-print("🚀 ПОДАРОЧНИЦА v9.0 — HARDCODED GIFTS")
+print("🚀 ПОДАРОЧНИЦА v10.0 — FIXED GIFTS SYSTEM")
 print("=" * 50)
 
 # ===== НАСТРОЙКИ =====
@@ -58,232 +58,44 @@ SENDERS = ["@echoaxxs", "@bogclm", "@bogclm и @echoaxxs"]
 SIGNATURE_COSTS = {"@echoaxxs": 2, "@bogclm": 2, "@bogclm и @echoaxxs": 5}
 
 PITY_THRESHOLD = 20
+PITY_REWARD_GIFT = "heart"
 
-# ===== TWEMOJI CDN для иконок =====
-TWEMOJI_BASE = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg"
+# ===== TWEMOJI для иконок =====
+TWEMOJI = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg"
 
-# ===== ЗАХАРДКОЖЕННЫЕ ПОДАРКИ =====
-# Названия + иконки (Twemoji SVG)
-HARDCODED_GIFTS = {
-    # 15 Stars
-    "heart": {
-        "title": "Сердце",
-        "price": 15,
-        "emoji": "❤️",
-        "icon": f"{TWEMOJI_BASE}/2764.svg",
-        "color": "#e74c3c"
-    },
-    "bear": {
-        "title": "Мишка",
-        "price": 15,
-        "emoji": "🧸",
-        "icon": f"{TWEMOJI_BASE}/1f9f8.svg",
-        "color": "#a0522d"
-    },
-    "candy": {
-        "title": "Конфета",
-        "price": 15,
-        "emoji": "🍬",
-        "icon": f"{TWEMOJI_BASE}/1f36c.svg",
-        "color": "#ff6b9d"
-    },
-    "lollipop": {
-        "title": "Леденец",
-        "price": 15,
-        "emoji": "🍭",
-        "icon": f"{TWEMOJI_BASE}/1f36d.svg",
-        "color": "#ff69b4"
-    },
+# ===== ЗАХАРДКОЖЕННЫЕ ПОДАРКИ (порядок важен!) =====
+# Группируем по цене, порядок соответствует порядку в Telegram
+HARDCODED_GIFTS = [
+    # 15 Stars (порядок как в Telegram)
+    {"id": "heart", "title": "Сердце", "emoji": "❤️", "price": 15, "icon": f"{TWEMOJI}/2764.svg"},
+    {"id": "bear", "title": "Мишка", "emoji": "🧸", "price": 15, "icon": f"{TWEMOJI}/1f9f8.svg"},
+    {"id": "flower", "title": "Цветок", "emoji": "🌸", "price": 15, "icon": f"{TWEMOJI}/1f338.svg"},
+    {"id": "candy", "title": "Конфета", "emoji": "🍬", "price": 15, "icon": f"{TWEMOJI}/1f36c.svg"},
     
     # 25 Stars
-    "rose": {
-        "title": "Роза",
-        "price": 25,
-        "emoji": "🌹",
-        "icon": f"{TWEMOJI_BASE}/1f339.svg",
-        "color": "#e74c3c"
-    },
-    "gift_box": {
-        "title": "Подарок",
-        "price": 25,
-        "emoji": "🎁",
-        "icon": f"{TWEMOJI_BASE}/1f381.svg",
-        "color": "#e74c3c"
-    },
-    "chocolate": {
-        "title": "Шоколад",
-        "price": 25,
-        "emoji": "🍫",
-        "icon": f"{TWEMOJI_BASE}/1f36b.svg",
-        "color": "#8b4513"
-    },
-    "balloon": {
-        "title": "Шарик",
-        "price": 25,
-        "emoji": "🎈",
-        "icon": f"{TWEMOJI_BASE}/1f388.svg",
-        "color": "#e74c3c"
-    },
+    {"id": "rose", "title": "Роза", "emoji": "🌹", "price": 25, "icon": f"{TWEMOJI}/1f339.svg"},
+    {"id": "gift_box", "title": "Подарок", "emoji": "🎁", "price": 25, "icon": f"{TWEMOJI}/1f381.svg"},
+    {"id": "chocolate", "title": "Шоколад", "emoji": "🍫", "price": 25, "icon": f"{TWEMOJI}/1f36b.svg"},
+    {"id": "balloon", "title": "Шарик", "emoji": "🎈", "price": 25, "icon": f"{TWEMOJI}/1f388.svg"},
     
     # 50 Stars
-    "bouquet": {
-        "title": "Букет",
-        "price": 50,
-        "emoji": "💐",
-        "icon": f"{TWEMOJI_BASE}/1f490.svg",
-        "color": "#ff69b4"
-    },
-    "cake": {
-        "title": "Торт",
-        "price": 50,
-        "emoji": "🎂",
-        "icon": f"{TWEMOJI_BASE}/1f382.svg",
-        "color": "#ff69b4"
-    },
-    "cupcake": {
-        "title": "Капкейк",
-        "price": 50,
-        "emoji": "🧁",
-        "icon": f"{TWEMOJI_BASE}/1f9c1.svg",
-        "color": "#ff69b4"
-    },
-    "wine": {
-        "title": "Вино",
-        "price": 50,
-        "emoji": "🍷",
-        "icon": f"{TWEMOJI_BASE}/1f377.svg",
-        "color": "#722f37"
-    },
-    "rocket": {
-        "title": "Ракета",
-        "price": 50,
-        "emoji": "🚀",
-        "icon": f"{TWEMOJI_BASE}/1f680.svg",
-        "color": "#3498db"
-    },
-    "champagne": {
-        "title": "Шампанское",
-        "price": 50,
-        "emoji": "🍾",
-        "icon": f"{TWEMOJI_BASE}/1f37e.svg",
-        "color": "#f1c40f"
-    },
+    {"id": "bouquet", "title": "Букет", "emoji": "💐", "price": 50, "icon": f"{TWEMOJI}/1f490.svg"},
+    {"id": "cupcake", "title": "Капкейк", "emoji": "🧁", "price": 50, "icon": f"{TWEMOJI}/1f9c1.svg"},
+    {"id": "wine", "title": "Вино", "emoji": "🍷", "price": 50, "icon": f"{TWEMOJI}/1f377.svg"},
+    {"id": "rocket", "title": "Ракета", "emoji": "🚀", "price": 50, "icon": f"{TWEMOJI}/1f680.svg"},
+    {"id": "cake", "title": "Торт", "emoji": "🎂", "price": 50, "icon": f"{TWEMOJI}/1f382.svg"},
+    {"id": "champagne", "title": "Шампанское", "emoji": "🍾", "price": 50, "icon": f"{TWEMOJI}/1f37e.svg"},
     
     # 100 Stars
-    "ring": {
-        "title": "Кольцо",
-        "price": 100,
-        "emoji": "💍",
-        "icon": f"{TWEMOJI_BASE}/1f48d.svg",
-        "color": "#f1c40f"
-    },
-    "trophy": {
-        "title": "Кубок",
-        "price": 100,
-        "emoji": "🏆",
-        "icon": f"{TWEMOJI_BASE}/1f3c6.svg",
-        "color": "#f1c40f"
-    },
-    "diamond": {
-        "title": "Алмаз",
-        "price": 100,
-        "emoji": "💎",
-        "icon": f"{TWEMOJI_BASE}/1f48e.svg",
-        "color": "#3498db"
-    },
-    "crown": {
-        "title": "Корона",
-        "price": 100,
-        "emoji": "👑",
-        "icon": f"{TWEMOJI_BASE}/1f451.svg",
-        "color": "#f1c40f"
-    },
-    "star_struck": {
-        "title": "Звезда",
-        "price": 100,
-        "emoji": "🌟",
-        "icon": f"{TWEMOJI_BASE}/1f31f.svg",
-        "color": "#f1c40f"
-    },
-    
-    # 250 Stars (Premium)
-    "fire": {
-        "title": "Огонь",
-        "price": 250,
-        "emoji": "🔥",
-        "icon": f"{TWEMOJI_BASE}/1f525.svg",
-        "color": "#e74c3c",
-        "is_limited": True
-    },
-    "lightning": {
-        "title": "Молния",
-        "price": 250,
-        "emoji": "⚡",
-        "icon": f"{TWEMOJI_BASE}/26a1.svg",
-        "color": "#f1c40f",
-        "is_limited": True
-    },
-    "unicorn": {
-        "title": "Единорог",
-        "price": 250,
-        "emoji": "🦄",
-        "icon": f"{TWEMOJI_BASE}/1f984.svg",
-        "color": "#9b59b6",
-        "is_limited": True
-    },
-    
-    # 500 Stars (Ultra)
-    "crystal_ball": {
-        "title": "Магический шар",
-        "price": 500,
-        "emoji": "🔮",
-        "icon": f"{TWEMOJI_BASE}/1f52e.svg",
-        "color": "#9b59b6",
-        "is_limited": True
-    },
-    "rainbow": {
-        "title": "Радуга",
-        "price": 500,
-        "emoji": "🌈",
-        "icon": f"{TWEMOJI_BASE}/1f308.svg",
-        "color": "#e74c3c",
-        "is_limited": True
-    },
-    "sparkles": {
-        "title": "Искры",
-        "price": 500,
-        "emoji": "✨",
-        "icon": f"{TWEMOJI_BASE}/2728.svg",
-        "color": "#f1c40f",
-        "is_limited": True
-    },
-    
-    # 1000 Stars (Legendary)
-    "gem_stone": {
-        "title": "Драгоценность",
-        "price": 1000,
-        "emoji": "💠",
-        "icon": f"{TWEMOJI_BASE}/1f4a0.svg",
-        "color": "#3498db",
-        "is_limited": True
-    },
-    "shooting_star": {
-        "title": "Комета",
-        "price": 1000,
-        "emoji": "🌠",
-        "icon": f"{TWEMOJI_BASE}/1f320.svg",
-        "color": "#9b59b6",
-        "is_limited": True
-    },
-}
+    {"id": "ring", "title": "Кольцо", "emoji": "💍", "price": 100, "icon": f"{TWEMOJI}/1f48d.svg"},
+    {"id": "trophy", "title": "Кубок", "emoji": "🏆", "price": 100, "icon": f"{TWEMOJI}/1f3c6.svg"},
+    {"id": "diamond", "title": "Алмаз", "emoji": "💎", "price": 100, "icon": f"{TWEMOJI}/1f48e.svg"},
+    {"id": "crown", "title": "Корона", "emoji": "👑", "price": 100, "icon": f"{TWEMOJI}/1f451.svg"},
+    {"id": "star", "title": "Звезда", "emoji": "🌟", "price": 100, "icon": f"{TWEMOJI}/1f31f.svg"},
+]
 
-# Маппинг Telegram Gift ID -> наш ID (заполнится автоматически)
-TELEGRAM_GIFT_MAP = {}
-
-# Активные подарки (с telegram_gift_id)
+# Словарь для быстрого доступа
 GIFTS = {}
-
-PITY_REWARD_GIFT = "heart"
 
 # ===== КЕЙСЫ =====
 CASES = {
@@ -301,16 +113,11 @@ CASES = {
 
 # ===== КЭШ =====
 CACHE = {
-    "settings": {},
-    "settings_time": 0,
-    "news": [],
-    "news_time": 0,
-    "sales": [],
-    "sales_time": 0,
-    "balances": {},
-    "pity": {},
-    "promocodes": {},
-    "promocodes_time": 0,
+    "settings": {}, "settings_time": 0,
+    "news": [], "news_time": 0,
+    "sales": [], "sales_time": 0,
+    "balances": {}, "pity": {},
+    "promocodes": {}, "promocodes_time": 0,
 }
 CACHE_TTL = 30
 CACHE_TTL_LONG = 120
@@ -350,7 +157,7 @@ def init_google_sheets():
                 ws.append_row(headers)
                 if name == "settings":
                     ws.append_row(["maintenance", "FALSE"])
-                    ws.append_row(["maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже."])
+                    ws.append_row(["maintenance_text", "Идёт тех. перерыв."])
         
         _load_all_cache()
         return True
@@ -368,7 +175,7 @@ def _load_all_cache():
         _refresh_pity_cache()
         print("✅ Кэш предзагружен!")
     except Exception as e:
-        print(f"⚠️ Ошибка предзагрузки кэша: {e}")
+        print(f"⚠️ Ошибка кэша: {e}")
 
 
 def get_sheet(name: str):
@@ -378,153 +185,101 @@ def get_sheet(name: str):
         return None
 
 
-# ===== КЭШИРОВАННЫЕ ФУНКЦИИ =====
-
 def _refresh_settings_cache():
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("settings")
-        if not ws:
-            return
+        if not ws: return
         rows = ws.get_all_records()
-        settings = {}
-        for row in rows:
-            k = str(row.get("key", "")).strip().lower()
-            v = str(row.get("value", "")).strip()
-            if k:
-                settings[k] = v
-        CACHE["settings"] = settings
+        CACHE["settings"] = {str(r.get("key", "")).strip().lower(): str(r.get("value", "")).strip() for r in rows if r.get("key")}
         CACHE["settings_time"] = time.time()
     except Exception as e:
-        print(f"❌ Ошибка загрузки settings: {e}")
+        print(f"❌ settings: {e}")
 
 
 def get_setting(key: str, default: str = "") -> str:
-    now = time.time()
-    if now - CACHE.get("settings_time", 0) > CACHE_TTL:
+    if time.time() - CACHE.get("settings_time", 0) > CACHE_TTL:
         _refresh_settings_cache()
     return CACHE.get("settings", {}).get(key.lower(), default)
 
 
 def is_maintenance_enabled() -> bool:
-    value = get_setting("maintenance", "FALSE")
-    return value.upper() in ("TRUE", "1", "YES", "ON", "ДА")
+    return get_setting("maintenance", "FALSE").upper() in ("TRUE", "1", "YES")
 
 
 def get_maintenance_text() -> str:
-    return get_setting("maintenance_text", "Идёт тех. перерыв, мы улучшаем подарочницу. Попробуй позже.")
+    return get_setting("maintenance_text", "Тех. перерыв")
 
 
 def _refresh_news_cache():
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("news")
-        if not ws:
-            return
+        if not ws: return
         rows = ws.get_all_records()
         news = []
-        for row in rows:
-            if str(row.get("active", "TRUE")).strip().upper() == "FALSE":
-                continue
-            if not str(row.get("title", "")).strip():
-                continue
-            news.append({
-                "id": str(row.get("id", "")),
-                "title": str(row.get("title", "")),
-                "text": str(row.get("text", "")),
-                "image": str(row.get("image", "")) or None,
-                "date": str(row.get("date", ""))
-            })
+        for r in rows:
+            if str(r.get("active", "TRUE")).upper() == "FALSE": continue
+            if not str(r.get("title", "")).strip(): continue
+            news.append({"id": str(r.get("id", "")), "title": str(r.get("title", "")), "text": str(r.get("text", "")), "image": str(r.get("image", "")) or None, "date": str(r.get("date", ""))})
         news.sort(key=lambda x: x["date"], reverse=True)
         CACHE["news"] = news
         CACHE["news_time"] = time.time()
     except Exception as e:
-        print(f"❌ Ошибка загрузки news: {e}")
+        print(f"❌ news: {e}")
 
 
 def get_news() -> list:
-    now = time.time()
-    if now - CACHE.get("news_time", 0) > CACHE_TTL_LONG:
+    if time.time() - CACHE.get("news_time", 0) > CACHE_TTL_LONG:
         _refresh_news_cache()
     return CACHE.get("news", [])
 
 
 def _refresh_sales_cache():
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("sales")
-        if not ws:
-            return
+        if not ws: return
         rows = ws.get_all_records()
         sales = []
-        for row in rows:
-            if str(row.get("active", "TRUE")).strip().upper() == "FALSE":
-                continue
-            try:
-                discount = int(row.get("discount", 0))
-            except:
-                discount = 0
-            if discount <= 0:
-                continue
-            sales.append({
-                "id": str(row.get("id", "")).strip(),
-                "title": str(row.get("title", "")).strip() or "Скидка",
-                "discount": discount,
-                "only_with_signature": str(row.get("only_with_signature", "TRUE")).strip().upper() in ("TRUE", "1", "YES"),
-            })
+        for r in rows:
+            if str(r.get("active", "TRUE")).upper() == "FALSE": continue
+            discount = int(r.get("discount", 0)) if str(r.get("discount", "")).isdigit() else 0
+            if discount <= 0: continue
+            sales.append({"id": str(r.get("id", "")), "title": str(r.get("title", "")) or "Скидка", "discount": discount, "only_with_signature": str(r.get("only_with_signature", "TRUE")).upper() in ("TRUE", "1", "YES")})
         CACHE["sales"] = sales
         CACHE["sales_time"] = time.time()
     except Exception as e:
-        print(f"❌ Ошибка загрузки sales: {e}")
+        print(f"❌ sales: {e}")
 
 
 def get_sales() -> list:
-    now = time.time()
-    if now - CACHE.get("sales_time", 0) > CACHE_TTL_LONG:
+    if time.time() - CACHE.get("sales_time", 0) > CACHE_TTL_LONG:
         _refresh_sales_cache()
     return CACHE.get("sales", [])
 
 
 def _refresh_balances_cache():
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("balances")
-        if not ws:
-            return
+        if not ws: return
         rows = ws.get_all_records()
-        balances = {}
-        for row in rows:
-            uid = str(row.get("user_id", ""))
-            if uid:
-                balances[uid] = int(row.get("stars", 0))
-        CACHE["balances"] = balances
+        CACHE["balances"] = {str(r.get("user_id", "")): int(r.get("stars", 0)) for r in rows if r.get("user_id")}
     except Exception as e:
-        print(f"❌ Ошибка загрузки balances: {e}")
+        print(f"❌ balances: {e}")
 
 
 def _refresh_pity_cache():
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("pity")
-        if not ws:
-            return
+        if not ws: return
         rows = ws.get_all_records()
-        pity = {}
-        for row in rows:
-            uid = str(row.get("user_id", ""))
-            if uid:
-                pity[uid] = int(row.get("spent", 0))
-        CACHE["pity"] = pity
+        CACHE["pity"] = {str(r.get("user_id", "")): int(r.get("spent", 0)) for r in rows if r.get("user_id")}
     except Exception as e:
-        print(f"❌ Ошибка загрузки pity: {e}")
+        print(f"❌ pity: {e}")
 
-
-# ===== БАЛАНС =====
 
 def get_star_balance(user_id: int) -> int:
     return CACHE.get("balances", {}).get(str(user_id), 0)
@@ -533,43 +288,35 @@ def get_star_balance(user_id: int) -> int:
 def set_star_balance(user_id: int, amount: int):
     uid = str(user_id)
     CACHE.setdefault("balances", {})[uid] = amount
-    
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("balances")
-        if not ws:
-            return
-        all_values = ws.get_all_values()
-        found_row = None
-        for i, row in enumerate(all_values):
-            if i == 0:
-                continue
+        if not ws: return
+        all_vals = ws.get_all_values()
+        found = None
+        for i, row in enumerate(all_vals):
+            if i == 0: continue
             if row and row[0] == uid:
-                found_row = i + 1
+                found = i + 1
                 break
-        if found_row:
-            ws.update(f"B{found_row}", [[amount]])
+        if found:
+            ws.update(f"B{found}", [[amount]])
         else:
             ws.append_row([uid, amount])
     except Exception as e:
-        print(f"❌ set_star_balance: {e}")
+        print(f"❌ set_balance: {e}")
 
 
 def add_star_balance(user_id: int, amount: int):
-    current = get_star_balance(user_id)
-    set_star_balance(user_id, current + amount)
+    set_star_balance(user_id, get_star_balance(user_id) + amount)
 
 
 def use_star_balance(user_id: int, amount: int) -> bool:
-    current = get_star_balance(user_id)
-    if current < amount:
-        return False
-    set_star_balance(user_id, current - amount)
+    cur = get_star_balance(user_id)
+    if cur < amount: return False
+    set_star_balance(user_id, cur - amount)
     return True
 
-
-# ===== PITY =====
 
 def get_pity_spent(user_id: int) -> int:
     return CACHE.get("pity", {}).get(str(user_id), 0)
@@ -578,159 +325,114 @@ def get_pity_spent(user_id: int) -> int:
 def set_pity_spent(user_id: int, amount: int):
     uid = str(user_id)
     CACHE.setdefault("pity", {})[uid] = amount
-    
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("pity")
-        if not ws:
-            return
-        all_values = ws.get_all_values()
-        found_row = None
-        for i, row in enumerate(all_values):
-            if i == 0:
-                continue
+        if not ws: return
+        all_vals = ws.get_all_values()
+        found = None
+        for i, row in enumerate(all_vals):
+            if i == 0: continue
             if row and row[0] == uid:
-                found_row = i + 1
+                found = i + 1
                 break
-        if found_row:
-            ws.update(f"B{found_row}", [[amount]])
+        if found:
+            ws.update(f"B{found}", [[amount]])
         else:
             ws.append_row([uid, amount])
     except Exception as e:
-        print(f"❌ set_pity_spent: {e}")
+        print(f"❌ set_pity: {e}")
 
 
 def add_pity_spent(user_id: int, amount: int) -> int:
-    current = get_pity_spent(user_id)
-    new_total = current + amount
-    set_pity_spent(user_id, new_total)
-    return new_total
+    new = get_pity_spent(user_id) + amount
+    set_pity_spent(user_id, new)
+    return new
 
 
 def reset_pity(user_id: int):
     set_pity_spent(user_id, 0)
 
 
-# ===== ПРОМОКОДЫ =====
-
 def get_promocodes() -> dict:
     now = time.time()
-    if now - CACHE.get("promocodes_time", 0) < CACHE_TTL:
-        cached = CACHE.get("promocodes", {})
-        if cached:
-            return cached
-    
-    if not spreadsheet:
-        return {}
+    if now - CACHE.get("promocodes_time", 0) < CACHE_TTL and CACHE.get("promocodes"):
+        return CACHE["promocodes"]
+    if not spreadsheet: return {}
     try:
         ws = get_sheet("promocodes")
-        if not ws:
-            return {}
+        if not ws: return {}
         rows = ws.get_all_records()
         result = {}
-        for row in rows:
-            code = str(row.get("code", "")).strip()
-            if not code:
-                continue
-            used_by_str = str(row.get("used_by", ""))
-            try:
-                used_by = json.loads(used_by_str) if used_by_str else []
-            except:
-                used_by = []
-            result[code] = {
-                "reward_type": str(row.get("reward_type", "")),
-                "reward_id": str(row.get("reward_id", "")),
-                "max_uses": int(row.get("max_uses", 0)),
-                "uses": int(row.get("uses", 0)),
-                "used_by": [int(x) for x in used_by if str(x).isdigit()],
-                "created": str(row.get("created", "")),
-            }
+        for r in rows:
+            code = str(r.get("code", "")).strip()
+            if not code: continue
+            ub = str(r.get("used_by", ""))
+            try: used_by = json.loads(ub) if ub else []
+            except: used_by = []
+            result[code] = {"reward_type": str(r.get("reward_type", "")), "reward_id": str(r.get("reward_id", "")), "max_uses": int(r.get("max_uses", 0)), "uses": int(r.get("uses", 0)), "used_by": [int(x) for x in used_by if str(x).isdigit()], "created": str(r.get("created", ""))}
         CACHE["promocodes"] = result
         CACHE["promocodes_time"] = now
         return result
     except Exception as e:
-        print(f"❌ get_promocodes: {e}")
+        print(f"❌ promocodes: {e}")
         return {}
 
 
 def save_promocode(code: str, promo: dict):
     CACHE.setdefault("promocodes", {})[code] = promo
     CACHE["promocodes_time"] = time.time()
-    
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("promocodes")
-        if not ws:
-            return
-        all_values = ws.get_all_values()
-        found_row = None
-        for i, row in enumerate(all_values):
-            if i == 0:
-                continue
+        if not ws: return
+        all_vals = ws.get_all_values()
+        found = None
+        for i, row in enumerate(all_vals):
+            if i == 0: continue
             if row and row[0] == code:
-                found_row = i + 1
+                found = i + 1
                 break
-        row_data = [
-            code, promo.get("reward_type", ""), promo.get("reward_id", ""),
-            promo.get("max_uses", 0), promo.get("uses", 0),
-            json.dumps(promo.get("used_by", [])), promo.get("created", ""), "TRUE"
-        ]
-        if found_row:
-            ws.update(f"A{found_row}:H{found_row}", [row_data])
+        data = [code, promo.get("reward_type", ""), promo.get("reward_id", ""), promo.get("max_uses", 0), promo.get("uses", 0), json.dumps(promo.get("used_by", [])), promo.get("created", ""), "TRUE"]
+        if found:
+            ws.update(f"A{found}:H{found}", [data])
         else:
-            ws.append_row(row_data)
+            ws.append_row(data)
     except Exception as e:
-        print(f"❌ save_promocode: {e}")
+        print(f"❌ save_promo: {e}")
 
 
 def delete_promocode(code: str):
     CACHE.get("promocodes", {}).pop(code, None)
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("promocodes")
-        if not ws:
-            return
-        all_values = ws.get_all_values()
-        for i, row in enumerate(all_values):
-            if i == 0:
-                continue
+        if not ws: return
+        for i, row in enumerate(ws.get_all_values()):
+            if i == 0: continue
             if row and row[0] == code:
                 ws.delete_rows(i + 1)
                 return
     except Exception as e:
-        print(f"❌ delete_promocode: {e}")
+        print(f"❌ del_promo: {e}")
 
-
-# ===== СОХРАНЕНИЕ =====
 
 def save_purchase(user_id: int, data: dict):
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("purchases")
         if ws:
-            ws.append_row([
-                str(user_id), data.get("type", ""),
-                data.get("gift_id", data.get("case_id", "")),
-                data.get("paid", 0), data.get("sender", ""),
-                datetime.now().isoformat()
-            ])
-    except:
-        pass
+            ws.append_row([str(user_id), data.get("type", ""), data.get("gift_id", data.get("case_id", "")), data.get("paid", 0), data.get("sender", ""), datetime.now().isoformat()])
+    except: pass
 
 
 def save_donation(user_id: int, username: str, amount: int):
-    if not spreadsheet:
-        return
+    if not spreadsheet: return
     try:
         ws = get_sheet("donations")
         if ws:
             ws.append_row([str(user_id), username or "", amount, datetime.now().isoformat()])
-    except:
-        pass
+    except: pass
 
 
 def save_pending_result(payment_id: str, result: dict):
@@ -741,34 +443,23 @@ def get_pending_result(payment_id: str) -> Optional[dict]:
     return MEMORY.get("pending_results", {}).pop(payment_id, None)
 
 
-# ===== УТИЛИТЫ =====
-
 def format_gift_text(sender_key: str, recipient_username: str = None) -> str:
-    if not sender_key or sender_key not in SENDERS:
-        return None
-    recipient = recipient_username.lstrip("@") if recipient_username else None
-    return f"От {sender_key} для @{recipient}" if recipient else f"От {sender_key}"
-
-
-def get_gift_signature_sale(sender: Optional[str]) -> dict | None:
-    if not sender or sender not in SENDERS:
-        return None
-    for sale in get_sales():
-        if sale.get("only_with_signature", True):
-            return sale
-    return None
+    if not sender_key or sender_key not in SENDERS: return None
+    r = recipient_username.lstrip("@") if recipient_username else None
+    return f"От {sender_key} для @{r}" if r else f"От {sender_key}"
 
 
 def calc_gift_price(gift_id: str, sender: Optional[str]) -> dict:
     gift = GIFTS.get(gift_id)
-    if not gift:
-        return {"final_price": 0, "base_price": 0, "signature_cost": 0, "discount": 0}
+    if not gift: return {"final_price": 0, "base_price": 0, "signature_cost": 0, "discount": 0}
     base = gift["price"]
-    sig_cost = SIGNATURE_COSTS.get(sender, 0) if sender in SENDERS else 0
-    sale = get_gift_signature_sale(sender)
-    discount = sale.get("discount", 0) if sale else 0
-    final = max(0, base - discount) + sig_cost
-    return {"final_price": final, "base_price": base, "signature_cost": sig_cost, "discount": discount}
+    sig = SIGNATURE_COSTS.get(sender, 0) if sender in SENDERS else 0
+    sale = None
+    if sender in SENDERS:
+        for s in get_sales():
+            if s.get("only_with_signature"): sale = s; break
+    disc = sale.get("discount", 0) if sale else 0
+    return {"final_price": max(0, base - disc) + sig, "base_price": base, "signature_cost": sig, "discount": disc}
 
 
 def is_admin(user_id: int) -> bool:
@@ -785,169 +476,183 @@ dp.include_router(router)
 def validate_init_data(init_data: str) -> Optional[dict]:
     try:
         parsed = dict(parse_qsl(init_data, keep_blank_values=True))
-        if "hash" not in parsed:
-            return None
-        received_hash = parsed.pop("hash")
-        data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
-        secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        if calculated_hash == received_hash:
-            if "user" in parsed:
-                parsed["user"] = json.loads(parsed["user"])
+        if "hash" not in parsed: return None
+        h = parsed.pop("hash")
+        dcs = "\n".join(f"{k}={v}" for k, v in sorted(parsed.items()))
+        sk = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+        if hmac.new(sk, dcs.encode(), hashlib.sha256).hexdigest() == h:
+            if "user" in parsed: parsed["user"] = json.loads(parsed["user"])
             return parsed
         return None
-    except:
-        return None
+    except: return None
 
 
 async def check_subscription(user_id: int) -> dict:
-    if not REQUIRED_CHANNELS:
-        return {"subscribed": True, "missing": [], "checked": []}
-
+    if not REQUIRED_CHANNELS: return {"subscribed": True, "missing": []}
     missing = []
-    checked = []
-
-    for channel in REQUIRED_CHANNELS:
-        channel = channel.strip()
-        if not channel:
-            continue
+    for ch in REQUIRED_CHANNELS:
+        ch = ch.strip()
+        if not ch: continue
         try:
-            chat_id = int(channel) if channel.lstrip('-').isdigit() else channel
-            member = await bot.get_chat_member(chat_id=chat_id, user_id=user_id)
-            status = member.status.value if hasattr(member.status, 'value') else str(member.status).lower()
-            checked.append({"channel": channel, "status": status})
-            if status in ("left", "kicked"):
-                missing.append(channel)
+            cid = int(ch) if ch.lstrip('-').isdigit() else ch
+            m = await bot.get_chat_member(chat_id=cid, user_id=user_id)
+            st = m.status.value if hasattr(m.status, 'value') else str(m.status).lower()
+            if st in ("left", "kicked"): missing.append(ch)
         except Exception as e:
-            err = str(e).lower()
-            checked.append({"channel": channel, "status": "error", "error": str(e)[:50]})
-            if "user not found" in err:
-                missing.append(channel)
-            elif "chat not found" not in err and "bot is not a member" not in err:
-                missing.append(channel)
-
-    return {"subscribed": len(missing) == 0, "missing": list(dict.fromkeys(missing)), "checked": checked}
+            if "user not found" in str(e).lower(): missing.append(ch)
+    return {"subscribed": len(missing) == 0, "missing": list(dict.fromkeys(missing))}
 
 
 async def load_telegram_gifts():
-    """Загружаем подарки из Telegram и сопоставляем с нашими"""
-    global GIFTS, TELEGRAM_GIFT_MAP
+    """Загружаем подарки из Telegram и сопоставляем"""
+    global GIFTS
     
     try:
         available = await bot.get_available_gifts()
         if not available or not available.gifts:
-            print("❌ Нет доступных подарков в Telegram API")
-            # Используем захардкоженные без telegram_gift_id
-            for gid, gdata in HARDCODED_GIFTS.items():
-                GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": False}
+            print("❌ Нет подарков в Telegram API")
+            # Используем только захардкоженные без telegram_gift_id
+            for g in HARDCODED_GIFTS:
+                GIFTS[g["id"]] = {**g, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
             return False
         
-        print(f"📦 Telegram API: {len(available.gifts)} подарков")
+        print(f"📦 Telegram: {len(available.gifts)} подарков")
         
-        # Группируем по цене
-        by_price = {}
-        for gift in available.gifts:
-            by_price.setdefault(gift.star_count, []).append(gift)
+        # Группируем telegram подарки по цене
+        tg_by_price = {}
+        for tg in available.gifts:
+            tg_by_price.setdefault(tg.star_count, []).append(tg)
         
-        # Сопоставляем наши подарки с Telegram
-        used_telegram_ids = set()
+        # Сортируем каждую группу (для стабильного порядка)
+        for price in tg_by_price:
+            tg_by_price[price].sort(key=lambda x: x.id)
         
-        for gid, gdata in HARDCODED_GIFTS.items():
-            price = gdata["price"]
+        # Индексы использованных telegram подарков по цене
+        used_indices = {p: 0 for p in tg_by_price}
+        
+        # Множество использованных telegram_gift_id
+        used_tg_ids = set()
+        
+        # 1. Сопоставляем захардкоженные подарки
+        for hg in HARDCODED_GIFTS:
+            price = hg["price"]
+            gid = hg["id"]
             
-            # Ищем подарок с такой ценой
-            if price in by_price:
-                for tg_gift in by_price[price]:
-                    if tg_gift.id not in used_telegram_ids:
-                        # Нашли!
-                        used_telegram_ids.add(tg_gift.id)
-                        
-                        is_limited = tg_gift.total_count is not None and tg_gift.total_count > 0
-                        sold_out = is_limited and (tg_gift.remaining_count or 0) == 0
-                        
-                        GIFTS[gid] = {
-                            **gdata,
-                            "id": gid,
-                            "telegram_gift_id": tg_gift.id,
-                            "is_limited": is_limited or gdata.get("is_limited", False),
-                            "total_count": tg_gift.total_count,
-                            "remaining_count": tg_gift.remaining_count,
-                            "sold_out": sold_out,
-                        }
-                        TELEGRAM_GIFT_MAP[tg_gift.id] = gid
-                        break
+            if price in tg_by_price:
+                idx = used_indices[price]
+                tg_list = tg_by_price[price]
+                
+                if idx < len(tg_list):
+                    tg = tg_list[idx]
+                    used_indices[price] = idx + 1
+                    used_tg_ids.add(tg.id)
+                    
+                    is_limited = tg.total_count is not None and tg.total_count > 0
+                    sold_out = is_limited and (tg.remaining_count or 0) == 0
+                    
+                    # Получаем URL стикера
+                    sticker_url = None
+                    try:
+                        file = await bot.get_file(tg.sticker.file_id)
+                        sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+                    except:
+                        pass
+                    
+                    GIFTS[gid] = {
+                        **hg,
+                        "telegram_gift_id": tg.id,
+                        "is_limited": is_limited,
+                        "sold_out": sold_out,
+                        "total_count": tg.total_count,
+                        "remaining_count": tg.remaining_count,
+                        "sticker_url": sticker_url,
+                    }
+                    print(f"  ✓ {hg['emoji']} {hg['title']} ({price}⭐) -> {tg.id}")
                 else:
-                    # Не нашли с такой ценой — ищем ближайшую
-                    closest = min(by_price.keys(), key=lambda x: abs(x - price))
-                    for tg_gift in by_price[closest]:
-                        if tg_gift.id not in used_telegram_ids:
-                            used_telegram_ids.add(tg_gift.id)
-                            GIFTS[gid] = {
-                                **gdata,
-                                "id": gid,
-                                "telegram_gift_id": tg_gift.id,
-                                "price": closest,  # Обновляем цену
-                                "is_limited": gdata.get("is_limited", False),
-                                "sold_out": False,
-                            }
-                            TELEGRAM_GIFT_MAP[tg_gift.id] = gid
-                            break
+                    # Нет свободного telegram подарка с такой ценой
+                    GIFTS[gid] = {**hg, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
+                    print(f"  ✗ {hg['emoji']} {hg['title']} ({price}⭐) - нет в Telegram")
             else:
-                # Нет подарков с такой ценой — используем без telegram_gift_id
-                GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": True}
+                GIFTS[gid] = {**hg, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
+                print(f"  ✗ {hg['emoji']} {hg['title']} ({price}⭐) - нет цены в Telegram")
         
-        print(f"✅ Сопоставлено {len([g for g in GIFTS.values() if g.get('telegram_gift_id')])} подарков")
+        # 2. Добавляем неизвестные telegram подарки как лимитированные
+        unknown_idx = 0
+        for tg in available.gifts:
+            if tg.id in used_tg_ids:
+                continue
+            
+            unknown_idx += 1
+            gid = f"unknown_{unknown_idx}"
+            
+            is_limited = tg.total_count is not None and tg.total_count > 0
+            sold_out = is_limited and (tg.remaining_count or 0) == 0
+            
+            # Получаем URL стикера
+            sticker_url = None
+            try:
+                file = await bot.get_file(tg.sticker.file_id)
+                sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+            except:
+                pass
+            
+            # Emoji по цене для unknown
+            price_emojis = {15: "🎀", 25: "🎁", 50: "🎊", 100: "💫", 250: "🔥", 500: "⚡", 1000: "🌈"}
+            emoji = price_emojis.get(tg.star_count, "🎁")
+            
+            GIFTS[gid] = {
+                "id": gid,
+                "title": None,  # Без названия!
+                "emoji": emoji,
+                "price": tg.star_count,
+                "icon": None,  # Будем использовать sticker_url
+                "telegram_gift_id": tg.id,
+                "is_limited": True,  # Все unknown помечаем как лимитированные
+                "sold_out": sold_out,
+                "total_count": tg.total_count,
+                "remaining_count": tg.remaining_count,
+                "sticker_url": sticker_url,
+                "is_unknown": True,  # Флаг что это неизвестный подарок
+            }
+            print(f"  + Unknown #{unknown_idx} ({tg.star_count}⭐) {tg.id}")
         
-        # Логируем
-        for gid, g in GIFTS.items():
-            status = "✓" if g.get("telegram_gift_id") else "✗"
-            print(f"  {status} {g['emoji']} {g['title']} ({g['price']}⭐)")
-        
+        print(f"✅ Всего: {len(GIFTS)} подарков ({sum(1 for g in GIFTS.values() if g.get('telegram_gift_id'))} доступно)")
         return True
         
     except Exception as e:
-        print(f"❌ Ошибка загрузки подарков: {e}")
+        print(f"❌ Ошибка загрузки: {e}")
         import traceback
         traceback.print_exc()
-        
-        # Fallback: используем захардкоженные
-        for gid, gdata in HARDCODED_GIFTS.items():
-            GIFTS[gid] = {**gdata, "id": gid, "telegram_gift_id": None, "sold_out": False}
+        for g in HARDCODED_GIFTS:
+            GIFTS[g["id"]] = {**g, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
         return False
 
 
 async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> tuple[bool, str]:
     gift = GIFTS.get(gift_id)
-    if not gift:
-        return False, "Подарок не найден"
+    if not gift: return False, "Подарок не найден"
     
-    telegram_id = gift.get("telegram_gift_id")
-    if not telegram_id:
-        return False, "Подарок недоступен"
-    
-    if gift.get("sold_out"):
-        return False, "Подарок закончился"
+    tg_id = gift.get("telegram_gift_id")
+    if not tg_id: return False, "Подарок недоступен"
+    if gift.get("sold_out"): return False, "Подарок закончился"
     
     try:
-        await bot.send_gift(user_id=user_id, gift_id=telegram_id, text=text or f"{gift['emoji']} {gift['title']}")
+        title = gift.get("title") or f"Подарок {gift['price']}⭐"
+        await bot.send_gift(user_id=user_id, gift_id=tg_id, text=text or f"{gift['emoji']} {title}")
         return True, "OK"
     except Exception as e:
         msg = str(e)
-        if "DISALLOWED" in msg.upper():
-            return False, "🔒 Включи получение подарков в настройках Telegram"
+        if "DISALLOWED" in msg.upper(): return False, "🔒 Включи получение подарков"
         if "GIFT_SOLD_OUT" in msg.upper():
-            if gift_id in GIFTS:
-                GIFTS[gift_id]["sold_out"] = True
-            return False, "😔 Подарок закончился"
+            if gift_id in GIFTS: GIFTS[gift_id]["sold_out"] = True
+            return False, "😔 Закончился"
         return False, msg[:80]
 
 
 def roll_case(case_id: str, user_id: int = None) -> dict:
     case = CASES.get(case_id)
-    if not case:
-        return {"type": "nothing", "items": [], "multiplier": 1}
+    if not case: return {"type": "nothing", "items": [], "multiplier": 1}
     
-    # Stars кейсы
     if case.get("type") == "stars":
         drops = case.get("drops", [])
         roll = random.random()
@@ -958,52 +663,34 @@ def roll_case(case_id: str, user_id: int = None) -> dict:
                 return {"type": "stars", "stars_won": d["stars"], "all_drops": drops}
         return {"type": "stars", "stars_won": drops[0]["stars"] if drops else 50, "all_drops": drops}
     
-    # Pity кейсы
     if case.get("pity_enabled") and user_id:
-        new_spent = add_pity_spent(user_id, case["price"])
-        if new_spent >= PITY_THRESHOLD:
+        new = add_pity_spent(user_id, case["price"])
+        if new >= PITY_THRESHOLD:
             reset_pity(user_id)
-            return {
-                "type": "gift", 
-                "items": [PITY_REWARD_GIFT], 
-                "multiplier": 1, 
-                "pity_triggered": True, 
-                "pity_progress": 0
-            }
-        return {"type": "nothing", "items": [], "multiplier": 1, "pity_progress": new_spent}
+            return {"type": "gift", "items": [PITY_REWARD_GIFT], "multiplier": 1, "pity_triggered": True, "pity_progress": 0}
+        return {"type": "nothing", "items": [], "multiplier": 1, "pity_progress": new}
     
-    # Обычные кейсы
-    available = [gid for gid, g in GIFTS.items() if not g.get("sold_out") and g.get("telegram_gift_id")]
-    if not available:
-        return {"type": "nothing", "items": [], "multiplier": 1}
+    available = [gid for gid, g in GIFTS.items() if g.get("telegram_gift_id") and not g.get("sold_out")]
+    if not available: return {"type": "nothing", "items": [], "multiplier": 1}
     
-    case_price = case["price"]
-    suitable = [gid for gid in available if GIFTS[gid]["price"] <= case_price]
-    if not suitable:
-        suitable = available[:5]
+    suitable = [gid for gid in available if GIFTS[gid]["price"] <= case["price"]]
+    if not suitable: suitable = available[:5]
     
-    mult_info = case.get("multiplier")
+    mult = case.get("multiplier")
     count = 1
-    if mult_info and mult_info.get("enabled"):
+    if mult and mult.get("enabled"):
         roll = random.random()
         cum = 0
-        for opt in mult_info["chances"]:
+        for opt in mult["chances"]:
             cum += opt["chance"]
-            if roll < cum:
-                count = opt["count"]
-                break
+            if roll < cum: count = opt["count"]; break
     
     won = []
     for _ in range(count):
-        nothing_chance = 0.30 if case.get("category") == "gifts" else 0.05
-        if random.random() < nothing_chance:
-            continue
-        gift_id = random.choice(suitable)
-        won.append(gift_id)
+        if random.random() < (0.30 if case.get("category") == "gifts" else 0.05): continue
+        won.append(random.choice(suitable))
     
-    if not won:
-        return {"type": "nothing", "items": [], "multiplier": count}
-    
+    if not won: return {"type": "nothing", "items": [], "multiplier": count}
     return {"type": "gift", "items": won, "multiplier": count}
 
 
@@ -1015,14 +702,8 @@ async def cmd_start(message: Message):
     if is_maintenance_enabled() and not is_admin(uid):
         await message.answer(get_maintenance_text())
         return
-    
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎁 Открыть", web_app=WebAppInfo(url=WEBAPP_URL))]
-    ])
-    await message.answer(
-        "👋 <b>Подарочница</b>\n\n🎁 Подарки • 🎰 Кейсы • ⭐ Stars\n\nНажми кнопку ниже!",
-        reply_markup=kb, parse_mode=ParseMode.HTML
-    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🎁 Открыть", web_app=WebAppInfo(url=WEBAPP_URL))]])
+    await message.answer("👋 <b>Подарочница</b>\n\n🎁 Подарки • 🎰 Кейсы • ⭐ Stars", reply_markup=kb, parse_mode=ParseMode.HTML)
 
 
 @router.pre_checkout_query()
@@ -1032,86 +713,78 @@ async def pre_checkout(query: PreCheckoutQuery):
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message):
-    payment = message.successful_payment
-    payload = json.loads(payment.invoice_payload)
-    buyer_id = message.from_user.id
-    buyer_username = message.from_user.username
-    total = payment.total_amount
-    item_type = payload.get("type")
-    payment_id = payload.get("payment_id")
+    p = message.successful_payment
+    payload = json.loads(p.invoice_payload)
+    uid = message.from_user.id
+    uname = message.from_user.username
+    total = p.total_amount
+    itype = payload.get("type")
+    pid = payload.get("payment_id")
     
     try:
-        if item_type == "donate":
-            save_donation(buyer_id, buyer_username, total)
+        if itype == "donate":
+            save_donation(uid, uname, total)
             await message.answer(f"💝 Спасибо за {total}⭐!")
             return
         
-        if item_type == "gift":
+        if itype == "gift":
             gift = GIFTS.get(payload["id"])
             if not gift:
                 await message.answer("⚠️ Подарок не найден")
                 return
-            text = format_gift_text(payload.get("sender"), buyer_username)
-            success, error = await send_real_gift(buyer_id, payload["id"], text)
-            save_purchase(buyer_id, {"type": "gift", "gift_id": payload["id"], "paid": total})
-            await message.answer(f"🎉 {gift['emoji']} {gift['title']}!" if success else f"⚠️ {error}")
+            txt = format_gift_text(payload.get("sender"), uname)
+            ok, err = await send_real_gift(uid, payload["id"], txt)
+            save_purchase(uid, {"type": "gift", "gift_id": payload["id"], "paid": total})
+            title = gift.get("title") or f"Подарок {gift['price']}⭐"
+            await message.answer(f"🎉 {gift['emoji']} {title}!" if ok else f"⚠️ {err}")
             return
         
-        if item_type == "case":
+        if itype == "case":
             case = CASES.get(payload["id"])
             if not case:
                 await message.answer("⚠️ Кейс не найден")
                 return
-            result = roll_case(payload["id"], buyer_id)
-            if payment_id:
-                save_pending_result(payment_id, result)
+            result = roll_case(payload["id"], uid)
+            if pid: save_pending_result(pid, result)
             
             if result["type"] == "stars":
-                add_star_balance(buyer_id, result["stars_won"])
+                add_star_balance(uid, result["stars_won"])
                 await message.answer(f"⭐ +{result['stars_won']} Stars!")
             elif result["type"] == "nothing":
                 pity = result.get("pity_progress", 0)
-                text = f"😔 Ничего..." + (f"\n📊 До гарантии: {PITY_THRESHOLD - pity}⭐" if pity else "")
-                await message.answer(text)
+                await message.answer(f"😔 Ничего..." + (f"\n📊 До гарантии: {PITY_THRESHOLD - pity}⭐" if pity else ""))
             else:
                 for gid in result["items"]:
-                    gift = GIFTS.get(gid)
-                    await send_real_gift(buyer_id, gid, f"Из {case['title']}")
+                    await send_real_gift(uid, gid, f"Из {case['title']}")
                     await asyncio.sleep(0.2)
-                first_gift = GIFTS.get(result["items"][0], {})
-                await message.answer(f"🎉 {first_gift.get('emoji', '🎁')} {first_gift.get('title', 'Подарок')}!")
+                g = GIFTS.get(result["items"][0], {})
+                title = g.get("title") or f"Подарок {g.get('price', '?')}⭐"
+                await message.answer(f"🎉 {g.get('emoji', '🎁')} {title}!")
             
-            save_purchase(buyer_id, {"type": "case", "case_id": payload["id"], "paid": total})
+            save_purchase(uid, {"type": "case", "case_id": payload["id"], "paid": total})
     except Exception as e:
         print(f"❌ Payment: {e}")
-        await message.answer(f"⚠️ Ошибка")
+        await message.answer("⚠️ Ошибка")
 
 
-# ===== KEEP ALIVE =====
 async def keep_alive():
-    if not SELF_URL:
-        return
+    if not SELF_URL: return
     await asyncio.sleep(30)
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as c:
         while True:
-            try:
-                await client.get(f"{SELF_URL}/health", timeout=10)
-            except:
-                pass
+            try: await c.get(f"{SELF_URL}/health", timeout=10)
+            except: pass
             await asyncio.sleep(240)
 
 
-async def refresh_gifts_periodically():
+async def refresh_gifts_loop():
     await asyncio.sleep(60)
     while True:
-        try:
-            await load_telegram_gifts()
-        except Exception as e:
-            print(f"⚠️ Ошибка обновления подарков: {e}")
+        try: await load_telegram_gifts()
+        except Exception as e: print(f"⚠️ refresh: {e}")
         await asyncio.sleep(600)
 
 
-# ===== FastAPI =====
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Запуск...")
@@ -1120,7 +793,7 @@ async def lifespan(app: FastAPI):
     await asyncio.sleep(1)
     asyncio.create_task(dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()))
     asyncio.create_task(keep_alive())
-    asyncio.create_task(refresh_gifts_periodically())
+    asyncio.create_task(refresh_gifts_loop())
     print("✅ Готово!")
     yield
     print("👋 Стоп")
@@ -1130,7 +803,6 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 
-# === MODELS ===
 class InitDataReq(BaseModel):
     initData: str
 
@@ -1170,7 +842,6 @@ class GetResultReq(BaseModel):
     paymentId: str
 
 
-# === HELPERS ===
 def raise_if_maintenance(uid: int):
     if is_maintenance_enabled() and not is_admin(uid):
         raise HTTPException(503, get_maintenance_text())
@@ -1179,119 +850,73 @@ def raise_if_maintenance(uid: int):
 async def require_subscription(uid: int):
     sub = await check_subscription(uid)
     if not sub["subscribed"]:
-        raise HTTPException(403, f"Подпишитесь на каналы")
+        raise HTTPException(403, "Подпишитесь на каналы")
 
-
-# === ENDPOINTS ===
 
 @app.post("/api/check-subscription")
 async def api_check_subscription(req: InitDataReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     uid = auth["user"]["id"]
-    
     if is_maintenance_enabled() and not is_admin(uid):
         return {"subscribed": False, "maintenance": True, "message": get_maintenance_text(), "channels": []}
-    
     result = await check_subscription(uid)
-    
     channels = []
     for ch in REQUIRED_CHANNELS:
         link = CHANNEL_LINKS.get(ch)
         title = ch
-        
         try:
-            chat_id = int(ch) if ch.lstrip('-').isdigit() else ch
-            chat = await bot.get_chat(chat_id)
+            cid = int(ch) if ch.lstrip('-').isdigit() else ch
+            chat = await bot.get_chat(cid)
             title = chat.title or ch
             if not link:
-                if chat.username:
-                    link = f"https://t.me/{chat.username}"
-                elif chat.invite_link:
-                    link = chat.invite_link
-        except:
-            pass
-        
-        channels.append({
-            "id": ch,
-            "title": title,
-            "link": link,
-            "missing": ch in result["missing"]
-        })
-    
+                if chat.username: link = f"https://t.me/{chat.username}"
+                elif chat.invite_link: link = chat.invite_link
+        except: pass
+        channels.append({"id": ch, "title": title, "link": link, "missing": ch in result["missing"]})
     return {"subscribed": result["subscribed"], "maintenance": False, "channels": channels}
 
 
 @app.post("/api/get-user-data")
 async def api_get_user_data(req: InitDataReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     uid = auth["user"]["id"]
     raise_if_maintenance(uid)
-    
-    return {
-        "starBalance": get_star_balance(uid),
-        "pitySpent": get_pity_spent(uid),
-        "pityThreshold": PITY_THRESHOLD,
-        "isAdmin": is_admin(uid)
-    }
+    return {"starBalance": get_star_balance(uid), "pitySpent": get_pity_spent(uid), "pityThreshold": PITY_THRESHOLD, "isAdmin": is_admin(uid)}
 
 
 @app.get("/api/get-gifts")
 async def api_get_gifts():
-    """Возвращает все подарки с иконками и названиями"""
-    gifts_list = []
-    
+    gifts = []
     for gid, g in GIFTS.items():
-        gifts_list.append({
+        gifts.append({
             "id": gid,
-            "title": g["title"],
-            "emoji": g["emoji"],
+            "title": g.get("title"),  # None для unknown
+            "emoji": g.get("emoji", "🎁"),
             "price": g["price"],
-            "icon": g["icon"],
-            "color": g.get("color", "#ffffff"),
+            "icon": g.get("icon"),  # Twemoji SVG или None
+            "sticker_url": g.get("sticker_url"),  # URL стикера из Telegram
             "is_limited": g.get("is_limited", False),
+            "is_unknown": g.get("is_unknown", False),
             "remaining": g.get("remaining_count"),
             "total": g.get("total_count"),
             "sold_out": g.get("sold_out", False),
             "available": g.get("telegram_gift_id") is not None and not g.get("sold_out", False),
         })
-    
-    # Сортируем: доступные первые, потом по цене
-    gifts_list.sort(key=lambda x: (not x["available"], x["sold_out"], x["is_limited"], x["price"]))
-    
-    return {
-        "gifts": gifts_list,
-        "sales": get_sales(),
-        "total_count": len(gifts_list),
-        "available_count": sum(1 for g in gifts_list if g["available"]),
-    }
+    # Сортировка: доступные, потом лимитированные, потом по цене
+    gifts.sort(key=lambda x: (not x["available"], x["is_unknown"], x["sold_out"], x["price"]))
+    return {"gifts": gifts, "sales": get_sales()}
 
 
 @app.get("/api/get-cases")
 async def api_get_cases():
-    categories = {
-        "cheap": {"title": "💰 Дешёвые", "cases": []}, 
-        "gifts": {"title": "🎁 Подарки", "cases": []}, 
-        "stars": {"title": "⭐ Stars", "cases": []}
-    }
+    cats = {"cheap": {"title": "💰 Дешёвые", "cases": []}, "gifts": {"title": "🎁 Подарки", "cases": []}, "stars": {"title": "⭐ Stars", "cases": []}}
     for cid, c in CASES.items():
         cat = c.get("category", "gifts")
-        data = {
-            "id": cid, 
-            "title": c["title"], 
-            "price": c["price"], 
-            "category": cat, 
-            "type": c.get("type"), 
-            "pity_enabled": c.get("pity_enabled", False)
-        }
-        if cat in categories:
-            categories[cat]["cases"].append(data)
-    return {"categories": categories, "pityThreshold": PITY_THRESHOLD}
+        if cat in cats:
+            cats[cat]["cases"].append({"id": cid, "title": c["title"], "price": c["price"], "category": cat, "type": c.get("type"), "pity_enabled": c.get("pity_enabled", False)})
+    return {"categories": cats, "pityThreshold": PITY_THRESHOLD}
 
 
 @app.get("/api/get-news")
@@ -1302,36 +927,24 @@ async def api_get_news():
 @app.post("/api/create-invoice")
 async def create_invoice(req: InvoiceReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     uid = auth["user"]["id"]
     raise_if_maintenance(uid)
     await require_subscription(uid)
-    
-    payment_id = str(uuid.uuid4())
+    pid = str(uuid.uuid4())
     
     if req.giftId and req.giftId in GIFTS:
-        gift = GIFTS[req.giftId]
-        if gift.get("sold_out") or not gift.get("telegram_gift_id"):
-            raise HTTPException(400, "Подарок недоступен")
+        g = GIFTS[req.giftId]
+        if g.get("sold_out") or not g.get("telegram_gift_id"): raise HTTPException(400, "Подарок недоступен")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
-        link = await bot.create_invoice_link(
-            title=f"{gift['emoji']} {gift['title']}",
-            description=f"{gift['emoji']} {gift['title']}",
-            payload=json.dumps({"type": "gift", "id": req.giftId, "sender": req.sender, "payment_id": payment_id}),
-            currency="XTR", prices=[LabeledPrice(label=gift["title"], amount=price)]
-        )
-        return {"link": link, "paymentId": payment_id}
+        title = g.get("title") or f"Подарок {g['price']}⭐"
+        link = await bot.create_invoice_link(title=f"{g['emoji']} {title}", description=f"{g['emoji']} {title}", payload=json.dumps({"type": "gift", "id": req.giftId, "sender": req.sender, "payment_id": pid}), currency="XTR", prices=[LabeledPrice(label=title, amount=price)])
+        return {"link": link, "paymentId": pid}
     
     if req.caseId and req.caseId in CASES:
-        case = CASES[req.caseId]
-        link = await bot.create_invoice_link(
-            title=case["title"], description="🎰 Испытай удачу!",
-            payload=json.dumps({"type": "case", "id": req.caseId, "payment_id": payment_id}),
-            currency="XTR", prices=[LabeledPrice(label=case["title"], amount=case["price"])]
-        )
-        return {"link": link, "paymentId": payment_id}
+        c = CASES[req.caseId]
+        link = await bot.create_invoice_link(title=c["title"], description="🎰 Испытай удачу!", payload=json.dumps({"type": "case", "id": req.caseId, "payment_id": pid}), currency="XTR", prices=[LabeledPrice(label=c["title"], amount=c["price"])])
+        return {"link": link, "paymentId": pid}
     
     raise HTTPException(400, "Not found")
 
@@ -1339,105 +952,59 @@ async def create_invoice(req: InvoiceReq):
 @app.post("/api/get-case-result")
 async def api_get_case_result(req: GetResultReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     result = get_pending_result(req.paymentId)
-    if not result:
-        raise HTTPException(404, "Not found")
-    
+    if not result: raise HTTPException(404, "Not found")
     uid = auth["user"]["id"]
     result["newBalance"] = get_star_balance(uid)
     result["pitySpent"] = get_pity_spent(uid)
-    
     if result.get("items"):
-        result["won"] = [
-            {
-                "id": gid, 
-                "title": GIFTS.get(gid, {}).get("title", "Подарок"),
-                "emoji": GIFTS.get(gid, {}).get("emoji", "🎁"),
-                "icon": GIFTS.get(gid, {}).get("icon", ""),
-                "price": GIFTS.get(gid, {}).get("price", 0)
-            }
-            for gid in result["items"]
-        ]
-    
+        result["won"] = [{"id": gid, "title": GIFTS.get(gid, {}).get("title"), "emoji": GIFTS.get(gid, {}).get("emoji", "🎁"), "icon": GIFTS.get(gid, {}).get("icon"), "sticker_url": GIFTS.get(gid, {}).get("sticker_url"), "price": GIFTS.get(gid, {}).get("price", 0)} for gid in result["items"]]
     return result
 
 
 @app.post("/api/buy-with-balance")
 async def api_buy_with_balance(req: BuyWithBalanceReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     uid = auth["user"]["id"]
-    username = auth["user"].get("username", "")
+    uname = auth["user"].get("username", "")
     raise_if_maintenance(uid)
     await require_subscription(uid)
-    
-    balance = get_star_balance(uid)
+    bal = get_star_balance(uid)
     
     if req.giftId and req.giftId in GIFTS:
-        gift = GIFTS[req.giftId]
-        if gift.get("sold_out") or not gift.get("telegram_gift_id"):
-            raise HTTPException(400, "Подарок недоступен")
+        g = GIFTS[req.giftId]
+        if g.get("sold_out") or not g.get("telegram_gift_id"): raise HTTPException(400, "Подарок недоступен")
         price = calc_gift_price(req.giftId, req.sender)["final_price"]
-        if balance < price:
-            raise HTTPException(400, f"Нужно {price}⭐")
-        
+        if bal < price: raise HTTPException(400, f"Нужно {price}⭐")
         use_star_balance(uid, price)
-        success, error = await send_real_gift(uid, req.giftId, format_gift_text(req.sender, username))
+        ok, err = await send_real_gift(uid, req.giftId, format_gift_text(req.sender, uname))
         save_purchase(uid, {"type": "gift_balance", "gift_id": req.giftId, "paid": price})
-        
-        if not success:
+        if not ok:
             add_star_balance(uid, price)
-            raise HTTPException(500, error)
-        
-        return {
-            "success": True, 
-            "type": "gift", 
-            "reward": f"{gift['emoji']} {gift['title']}", 
-            "newBalance": get_star_balance(uid)
-        }
+            raise HTTPException(500, err)
+        title = g.get("title") or f"Подарок {g['price']}⭐"
+        return {"success": True, "type": "gift", "reward": f"{g['emoji']} {title}", "newBalance": get_star_balance(uid)}
     
     if req.caseId and req.caseId in CASES:
-        case = CASES[req.caseId]
-        price = case["price"]
-        if balance < price:
-            raise HTTPException(400, f"Нужно {price}⭐")
-        
+        c = CASES[req.caseId]
+        price = c["price"]
+        if bal < price: raise HTTPException(400, f"Нужно {price}⭐")
         use_star_balance(uid, price)
         result = roll_case(req.caseId, uid)
-        
         if result["type"] == "stars":
             add_star_balance(uid, result["stars_won"])
             return {"success": True, "type": "stars", "starsWon": result["stars_won"], "newBalance": get_star_balance(uid)}
-        
         if result["type"] == "nothing":
             return {"success": True, "type": "nothing", "newBalance": get_star_balance(uid), "pitySpent": result.get("pity_progress", 0)}
-        
         sent = []
         for gid in result["items"]:
-            gift = GIFTS.get(gid, {})
-            ok, _ = await send_real_gift(uid, gid, f"Из {case['title']}")
-            if ok:
-                sent.append({
-                    "id": gid, 
-                    "title": gift.get("title", "Подарок"),
-                    "emoji": gift.get("emoji", "🎁"),
-                    "icon": gift.get("icon", ""),
-                })
+            g = GIFTS.get(gid, {})
+            ok, _ = await send_real_gift(uid, gid, f"Из {c['title']}")
+            if ok: sent.append({"id": gid, "title": g.get("title"), "emoji": g.get("emoji", "🎁")})
             await asyncio.sleep(0.2)
-        
-        return {
-            "success": True, 
-            "type": "gifts", 
-            "won": sent, 
-            "multiplier": result["multiplier"], 
-            "newBalance": get_star_balance(uid),
-            "pityTriggered": result.get("pity_triggered", False)
-        }
+        return {"success": True, "type": "gifts", "won": sent, "multiplier": result["multiplier"], "newBalance": get_star_balance(uid), "pityTriggered": result.get("pity_triggered", False)}
     
     raise HTTPException(400, "Не указан товар")
 
@@ -1445,163 +1012,91 @@ async def api_buy_with_balance(req: BuyWithBalanceReq):
 @app.post("/api/create-donate")
 async def create_donate(req: DonateReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
-    if req.amount < 1 or req.amount > 10000:
-        raise HTTPException(400, "1-10000")
-    
-    link = await bot.create_invoice_link(
-        title="💝 Донат", description=f"{req.amount}⭐",
-        payload=json.dumps({"type": "donate", "amount": req.amount}),
-        currency="XTR", prices=[LabeledPrice(label="Донат", amount=req.amount)]
-    )
+    if not auth: raise HTTPException(401, "Invalid auth")
+    if req.amount < 1 or req.amount > 10000: raise HTTPException(400, "1-10000")
+    link = await bot.create_invoice_link(title="💝 Донат", description=f"{req.amount}⭐", payload=json.dumps({"type": "donate", "amount": req.amount}), currency="XTR", prices=[LabeledPrice(label="Донат", amount=req.amount)])
     return {"link": link}
 
 
 @app.post("/api/activate-promocode")
 async def api_activate_promocode(req: PromocodeReq):
     auth = validate_init_data(req.initData)
-    if not auth:
-        raise HTTPException(401, "Invalid auth")
-    
+    if not auth: raise HTTPException(401, "Invalid auth")
     uid = int(auth["user"]["id"])
     raise_if_maintenance(uid)
     await require_subscription(uid)
-    
     code = req.code.strip().upper()
     promos = get_promocodes()
-    
-    if code not in promos:
-        raise HTTPException(404, "Не найден")
-    
-    promo = promos[code]
-    if uid in promo.get("used_by", []):
-        raise HTTPException(400, "Уже использован")
-    if promo.get("uses", 0) >= promo.get("max_uses", 0):
-        raise HTTPException(400, "Закончился")
-    
-    promo["uses"] = promo.get("uses", 0) + 1
-    promo.setdefault("used_by", []).append(uid)
-    save_promocode(code, promo)
-    
-    rt, ri = promo["reward_type"], promo["reward_id"]
-    
+    if code not in promos: raise HTTPException(404, "Не найден")
+    p = promos[code]
+    if uid in p.get("used_by", []): raise HTTPException(400, "Уже использован")
+    if p.get("uses", 0) >= p.get("max_uses", 0): raise HTTPException(400, "Закончился")
+    p["uses"] = p.get("uses", 0) + 1
+    p.setdefault("used_by", []).append(uid)
+    save_promocode(code, p)
+    rt, ri = p["reward_type"], p["reward_id"]
     if rt == "stars":
-        amount = int(ri)
-        add_star_balance(uid, amount)
-        return {"success": True, "reward": f"+{amount}⭐", "newBalance": get_star_balance(uid)}
-    
+        amt = int(ri)
+        add_star_balance(uid, amt)
+        return {"success": True, "reward": f"+{amt}⭐", "newBalance": get_star_balance(uid)}
     if rt == "gift":
-        gift = GIFTS.get(ri)
-        if gift and gift.get("telegram_gift_id"):
-            success, error = await send_real_gift(uid, ri, f"🎟 {code}")
-            if success:
-                return {"success": True, "reward": f"{gift['emoji']} {gift['title']}"}
-            return {"success": False, "error": error}
-    
+        g = GIFTS.get(ri)
+        if g and g.get("telegram_gift_id"):
+            ok, err = await send_real_gift(uid, ri, f"🎟 {code}")
+            if ok:
+                title = g.get("title") or f"Подарок {g['price']}⭐"
+                return {"success": True, "reward": f"{g['emoji']} {title}"}
+            return {"success": False, "error": err}
     if rt == "case":
         result = roll_case(ri, uid)
         return {"success": True, "reward": "Кейс открыт!", "caseResult": result}
-    
     return {"success": True, "reward": "OK"}
 
 
 @app.post("/api/admin/get-promocodes")
 async def api_admin_get_promocodes(req: InitDataReq):
     auth = validate_init_data(req.initData)
-    if not auth or not is_admin(auth["user"]["id"]):
-        raise HTTPException(403, "Admin only")
-    
-    promos = []
-    for code, p in get_promocodes().items():
-        promos.append({
-            "code": code,
-            "rewardType": p.get("reward_type", ""),
-            "rewardId": p.get("reward_id", ""),
-            "maxUses": p.get("max_uses", 0),
-            "uses": p.get("uses", 0),
-            "created": p.get("created", ""),
-        })
-    
-    return {"promocodes": promos}
+    if not auth or not is_admin(auth["user"]["id"]): raise HTTPException(403, "Admin only")
+    return {"promocodes": [{"code": c, "rewardType": p["reward_type"], "rewardId": p["reward_id"], "maxUses": p["max_uses"], "uses": p["uses"], "created": p.get("created", "")} for c, p in get_promocodes().items()]}
 
 
 @app.post("/api/admin/create-promocode")
 async def api_admin_create_promocode(req: CreatePromocodeReq):
     auth = validate_init_data(req.initData)
-    if not auth or not is_admin(auth["user"]["id"]):
-        raise HTTPException(403, "Admin only")
-    
+    if not auth or not is_admin(auth["user"]["id"]): raise HTTPException(403, "Admin only")
     code = req.code.strip().upper()
-    if not code:
-        raise HTTPException(400, "Код не указан")
-    
-    save_promocode(code, {
-        "reward_type": req.rewardType,
-        "reward_id": req.rewardId,
-        "max_uses": req.maxUses,
-        "uses": 0,
-        "used_by": [],
-        "created": datetime.now().isoformat()
-    })
+    if not code: raise HTTPException(400, "Код не указан")
+    save_promocode(code, {"reward_type": req.rewardType, "reward_id": req.rewardId, "max_uses": req.maxUses, "uses": 0, "used_by": [], "created": datetime.now().isoformat()})
     return {"success": True, "code": code}
 
 
 @app.post("/api/admin/delete-promocode")
 async def api_admin_delete_promocode(req: DeletePromocodeReq):
     auth = validate_init_data(req.initData)
-    if not auth or not is_admin(auth["user"]["id"]):
-        raise HTTPException(403, "Admin only")
-    
+    if not auth or not is_admin(auth["user"]["id"]): raise HTTPException(403, "Admin only")
     delete_promocode(req.code.upper())
     return {"success": True}
 
 
 @app.get("/api/admin/get-gifts-list")
 async def api_admin_get_gifts_list():
-    """Список подарков для админки"""
-    return {
-        "gifts": [
-            {
-                "id": gid, 
-                "title": f"{g['emoji']} {g['title']}", 
-                "price": g["price"], 
-                "is_limited": g.get("is_limited", False),
-                "available": g.get("telegram_gift_id") is not None
-            }
-            for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"])
-        ],
-        "cases": [
-            {"id": cid, "title": c["title"], "price": c["price"]}
-            for cid, c in CASES.items()
-        ]
-    }
+    return {"gifts": [{"id": gid, "title": f"{g.get('emoji', '🎁')} {g.get('title') or f'Подарок {g[\"price\"]}⭐'}", "price": g["price"], "available": g.get("telegram_gift_id") is not None} for gid, g in sorted(GIFTS.items(), key=lambda x: x[1]["price"])], "cases": [{"id": cid, "title": c["title"], "price": c["price"]} for cid, c in CASES.items()]}
 
 
 @app.get("/api/refresh-gifts")
 async def refresh_gifts():
-    success = await load_telegram_gifts()
-    return {
-        "success": success,
-        "gifts_count": len(GIFTS),
-        "available_count": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
-    }
+    ok = await load_telegram_gifts()
+    return {"success": ok, "gifts_count": len(GIFTS), "available": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))}
 
 
 @app.get("/")
 async def root():
-    return {
-        "app": "Подарочница v9.0",
-        "status": "running",
-        "gifts_loaded": len(GIFTS),
-        "gifts_available": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))
-    }
+    return {"app": "Подарочница v10.0", "gifts": len(GIFTS), "available": sum(1 for g in GIFTS.values() if g.get("telegram_gift_id"))}
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "time": datetime.now().isoformat(), "gifts": len(GIFTS)}
+    return {"status": "ok", "time": datetime.now().isoformat()}
 
 
 if __name__ == "__main__":
