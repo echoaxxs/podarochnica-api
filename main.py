@@ -66,32 +66,32 @@ TWEMOJI = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg"
 # ===== ЗАХАРДКОЖЕННЫЕ ПОДАРКИ (порядок важен!) =====
 # Группируем по цене, порядок соответствует порядку в Telegram
 HARDCODED_GIFTS = [
-    # 15 Stars (порядок как в Telegram)
-    {"id": "heart", "title": "Сердце", "emoji": "❤️", "price": 15, "icon": f"{TWEMOJI}/2764.svg"},
-    {"id": "bear", "title": "Мишка", "emoji": "🧸", "price": 15, "icon": f"{TWEMOJI}/1f9f8.svg"},
-    {"id": "flower", "title": "Цветок", "emoji": "🌸", "price": 15, "icon": f"{TWEMOJI}/1f338.svg"},
-    {"id": "candy", "title": "Конфета", "emoji": "🍬", "price": 15, "icon": f"{TWEMOJI}/1f36c.svg"},
+    # 15 Stars - ЗАМЕНИТЕ telegram_gift_id на реальные!
+    {"id": "heart", "title": "Сердце", "emoji": "❤️", "price": 15, "telegram_gift_id": None},  # <-- сюда вставить реальный id
+    {"id": "bear", "title": "Мишка", "emoji": "🧸", "price": 15, "telegram_gift_id": None},
+    {"id": "flower", "title": "Цветок", "emoji": "🌸", "price": 15, "telegram_gift_id": None},
+    {"id": "candy", "title": "Конфета", "emoji": "🍬", "price": 15, "telegram_gift_id": None},
     
     # 25 Stars
-    {"id": "rose", "title": "Роза", "emoji": "🌹", "price": 25, "icon": f"{TWEMOJI}/1f339.svg"},
-    {"id": "gift_box", "title": "Подарок", "emoji": "🎁", "price": 25, "icon": f"{TWEMOJI}/1f381.svg"},
-    {"id": "chocolate", "title": "Шоколад", "emoji": "🍫", "price": 25, "icon": f"{TWEMOJI}/1f36b.svg"},
-    {"id": "balloon", "title": "Шарик", "emoji": "🎈", "price": 25, "icon": f"{TWEMOJI}/1f388.svg"},
+    {"id": "rose", "title": "Роза", "emoji": "🌹", "price": 25, "telegram_gift_id": None},
+    {"id": "gift_box", "title": "Подарок", "emoji": "🎁", "price": 25, "telegram_gift_id": None},
+    {"id": "chocolate", "title": "Шоколад", "emoji": "🍫", "price": 25, "telegram_gift_id": None},
+    {"id": "balloon", "title": "Шарик", "emoji": "🎈", "price": 25, "telegram_gift_id": None},
     
     # 50 Stars
-    {"id": "bouquet", "title": "Букет", "emoji": "💐", "price": 50, "icon": f"{TWEMOJI}/1f490.svg"},
-    {"id": "cupcake", "title": "Капкейк", "emoji": "🧁", "price": 50, "icon": f"{TWEMOJI}/1f9c1.svg"},
-    {"id": "wine", "title": "Вино", "emoji": "🍷", "price": 50, "icon": f"{TWEMOJI}/1f377.svg"},
-    {"id": "rocket", "title": "Ракета", "emoji": "🚀", "price": 50, "icon": f"{TWEMOJI}/1f680.svg"},
-    {"id": "cake", "title": "Торт", "emoji": "🎂", "price": 50, "icon": f"{TWEMOJI}/1f382.svg"},
-    {"id": "champagne", "title": "Шампанское", "emoji": "🍾", "price": 50, "icon": f"{TWEMOJI}/1f37e.svg"},
+    {"id": "bouquet", "title": "Букет", "emoji": "💐", "price": 50, "telegram_gift_id": None},
+    {"id": "cupcake", "title": "Капкейк", "emoji": "🧁", "price": 50, "telegram_gift_id": None},
+    {"id": "wine", "title": "Вино", "emoji": "🍷", "price": 50, "telegram_gift_id": None},
+    {"id": "rocket", "title": "Ракета", "emoji": "🚀", "price": 50, "telegram_gift_id": None},
+    {"id": "cake", "title": "Торт", "emoji": "🎂", "price": 50, "telegram_gift_id": None},
+    {"id": "champagne", "title": "Шампанское", "emoji": "🍾", "price": 50, "telegram_gift_id": None},
     
     # 100 Stars
-    {"id": "ring", "title": "Кольцо", "emoji": "💍", "price": 100, "icon": f"{TWEMOJI}/1f48d.svg"},
-    {"id": "trophy", "title": "Кубок", "emoji": "🏆", "price": 100, "icon": f"{TWEMOJI}/1f3c6.svg"},
-    {"id": "diamond", "title": "Алмаз", "emoji": "💎", "price": 100, "icon": f"{TWEMOJI}/1f48e.svg"},
-    {"id": "crown", "title": "Корона", "emoji": "👑", "price": 100, "icon": f"{TWEMOJI}/1f451.svg"},
-    {"id": "star", "title": "Звезда", "emoji": "🌟", "price": 100, "icon": f"{TWEMOJI}/1f31f.svg"},
+    {"id": "ring", "title": "Кольцо", "emoji": "💍", "price": 100, "telegram_gift_id": None},
+    {"id": "trophy", "title": "Кубок", "emoji": "🏆", "price": 100, "telegram_gift_id": None},
+    {"id": "diamond", "title": "Алмаз", "emoji": "💎", "price": 100, "telegram_gift_id": None},
+    {"id": "crown", "title": "Корона", "emoji": "👑", "price": 100, "telegram_gift_id": None},
+    {"id": "star", "title": "Звезда", "emoji": "🌟", "price": 100, "telegram_gift_id": None},
 ]
 
 # Словарь для быстрого доступа
@@ -504,129 +504,130 @@ async def check_subscription(user_id: int) -> dict:
 
 
 async def load_telegram_gifts():
-    """Загружаем подарки из Telegram и сопоставляем"""
+    """Загружаем подарки из Telegram и сопоставляем по telegram_gift_id"""
     global GIFTS
     
     try:
         available = await bot.get_available_gifts()
         if not available or not available.gifts:
             print("❌ Нет подарков в Telegram API")
-            # Используем только захардкоженные без telegram_gift_id
-            for g in HARDCODED_GIFTS:
-                GIFTS[g["id"]] = {**g, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
             return False
         
-        print(f"📦 Telegram: {len(available.gifts)} подарков")
+        print(f"📦 Telegram вернул: {len(available.gifts)} подарков")
         
-        # Группируем telegram подарки по цене
-        tg_by_price = {}
-        for tg in available.gifts:
-            tg_by_price.setdefault(tg.star_count, []).append(tg)
-        
-        # Сортируем каждую группу (для стабильного порядка)
-        for price in tg_by_price:
-            tg_by_price[price].sort(key=lambda x: x.id)
-        
-        # Индексы использованных telegram подарков по цене
-        used_indices = {p: 0 for p in tg_by_price}
+        # Создаём словарь telegram подарков по id
+        tg_gifts_map = {tg.id: tg for tg in available.gifts}
         
         # Множество использованных telegram_gift_id
         used_tg_ids = set()
         
-        # 1. Сопоставляем захардкоженные подарки
+        # 1. Сопоставляем захардкоженные подарки по telegram_gift_id
         for hg in HARDCODED_GIFTS:
-            price = hg["price"]
             gid = hg["id"]
+            tg_id = hg.get("telegram_gift_id")
             
-            if price in tg_by_price:
-                idx = used_indices[price]
-                tg_list = tg_by_price[price]
+            if tg_id and tg_id in tg_gifts_map:
+                # Есть точное сопоставление
+                tg = tg_gifts_map[tg_id]
+                used_tg_ids.add(tg_id)
                 
-                if idx < len(tg_list):
-                    tg = tg_list[idx]
-                    used_indices[price] = idx + 1
-                    used_tg_ids.add(tg.id)
-                    
-                    is_limited = tg.total_count is not None and tg.total_count > 0
-                    sold_out = is_limited and (tg.remaining_count or 0) == 0
-                    
-                    # Получаем URL стикера
-                    sticker_url = None
-                    try:
-                        file = await bot.get_file(tg.sticker.file_id)
-                        sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-                    except:
-                        pass
-                    
-                    GIFTS[gid] = {
-                        **hg,
-                        "telegram_gift_id": tg.id,
-                        "is_limited": is_limited,
-                        "sold_out": sold_out,
-                        "total_count": tg.total_count,
-                        "remaining_count": tg.remaining_count,
-                        "sticker_url": sticker_url,
-                    }
-                    print(f"  ✓ {hg['emoji']} {hg['title']} ({price}⭐) -> {tg.id}")
-                else:
-                    # Нет свободного telegram подарка с такой ценой
-                    GIFTS[gid] = {**hg, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
-                    print(f"  ✗ {hg['emoji']} {hg['title']} ({price}⭐) - нет в Telegram")
+                is_limited = tg.total_count is not None and tg.total_count > 0
+                sold_out = is_limited and (tg.remaining_count or 0) == 0
+                
+                # Получаем данные стикера
+                sticker_url, sticker_type = await get_sticker_data(tg.sticker)
+                
+                GIFTS[gid] = {
+                    "id": gid,
+                    "title": hg["title"],
+                    "emoji": hg["emoji"],
+                    "price": tg.star_count,
+                    "telegram_gift_id": tg_id,
+                    "is_limited": is_limited,
+                    "sold_out": sold_out,
+                    "total_count": tg.total_count,
+                    "remaining_count": tg.remaining_count,
+                    "sticker_url": sticker_url,
+                    "sticker_type": sticker_type,  # 'tgs', 'webm', 'webp'
+                }
+                print(f"  ✓ {hg['emoji']} {hg['title']} -> {tg_id}")
             else:
-                GIFTS[gid] = {**hg, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
-                print(f"  ✗ {hg['emoji']} {hg['title']} ({price}⭐) - нет цены в Telegram")
+                # Нет telegram_gift_id - подарок недоступен
+                GIFTS[gid] = {
+                    "id": gid,
+                    "title": hg["title"],
+                    "emoji": hg["emoji"],
+                    "price": hg["price"],
+                    "telegram_gift_id": None,
+                    "is_limited": False,
+                    "sold_out": True,
+                    "sticker_url": None,
+                    "sticker_type": None,
+                }
+                if tg_id:
+                    print(f"  ✗ {hg['emoji']} {hg['title']} - id {tg_id} не найден в API")
+                else:
+                    print(f"  ⚠ {hg['emoji']} {hg['title']} - telegram_gift_id не задан!")
         
-        # 2. Добавляем неизвестные telegram подарки как лимитированные
+        # 2. Добавляем все остальные подарки из Telegram как "unknown"
         unknown_idx = 0
         for tg in available.gifts:
             if tg.id in used_tg_ids:
                 continue
             
             unknown_idx += 1
-            gid = f"unknown_{unknown_idx}"
+            gid = f"tg_{tg.id}"  # Используем telegram id как наш id
             
             is_limited = tg.total_count is not None and tg.total_count > 0
             sold_out = is_limited and (tg.remaining_count or 0) == 0
             
-            # Получаем URL стикера
-            sticker_url = None
-            try:
-                file = await bot.get_file(tg.sticker.file_id)
-                sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-            except:
-                pass
-            
-            # Emoji по цене для unknown
-            price_emojis = {15: "🎀", 25: "🎁", 50: "🎊", 100: "💫", 250: "🔥", 500: "⚡", 1000: "🌈"}
-            emoji = price_emojis.get(tg.star_count, "🎁")
+            sticker_url, sticker_type = await get_sticker_data(tg.sticker)
             
             GIFTS[gid] = {
                 "id": gid,
-                "title": None,  # Без названия!
-                "emoji": emoji,
+                "title": None,  # Неизвестный подарок
+                "emoji": "🎁",
                 "price": tg.star_count,
-                "icon": None,  # Будем использовать sticker_url
                 "telegram_gift_id": tg.id,
-                "is_limited": True,  # Все unknown помечаем как лимитированные
+                "is_limited": is_limited,
+                "is_unknown": True,
                 "sold_out": sold_out,
                 "total_count": tg.total_count,
                 "remaining_count": tg.remaining_count,
                 "sticker_url": sticker_url,
-                "is_unknown": True,  # Флаг что это неизвестный подарок
+                "sticker_type": sticker_type,
             }
-            print(f"  + Unknown #{unknown_idx} ({tg.star_count}⭐) {tg.id}")
+            print(f"  + Unknown: {tg.id} ({tg.star_count}⭐)")
         
-        print(f"✅ Всего: {len(GIFTS)} подарков ({sum(1 for g in GIFTS.values() if g.get('telegram_gift_id'))} доступно)")
+        available_count = sum(1 for g in GIFTS.values() if g.get("telegram_gift_id") and not g.get("sold_out"))
+        print(f"✅ Итого: {len(GIFTS)} подарков, {available_count} доступно для покупки")
         return True
         
     except Exception as e:
-        print(f"❌ Ошибка загрузки: {e}")
+        print(f"❌ Ошибка загрузки подарков: {e}")
         import traceback
         traceback.print_exc()
-        for g in HARDCODED_GIFTS:
-            GIFTS[g["id"]] = {**g, "telegram_gift_id": None, "is_limited": False, "sold_out": True, "sticker_url": None}
         return False
 
+async def get_sticker_data(sticker) -> tuple[str | None, str | None]:
+    """Получает URL и тип стикера"""
+    try:
+        file = await bot.get_file(sticker.file_id)
+        url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+        
+        # Определяем тип
+        if file.file_path:
+            if file.file_path.endswith('.tgs'):
+                return url, 'tgs'  # Lottie (нужна конвертация)
+            elif file.file_path.endswith('.webm'):
+                return url, 'webm'  # Video sticker
+            elif file.file_path.endswith('.webp'):
+                return url, 'webp'  # Static sticker
+        
+        return url, 'unknown'
+    except Exception as e:
+        print(f"  ⚠ Ошибка получения стикера: {e}")
+        return None, None
 
 async def send_real_gift(user_id: int, gift_id: str, text: Optional[str] = None) -> tuple[bool, str]:
     gift = GIFTS.get(gift_id)
@@ -908,6 +909,43 @@ async def api_get_gifts():
     gifts.sort(key=lambda x: (not x["available"], x["is_unknown"], x["sold_out"], x["price"]))
     return {"gifts": gifts, "sales": get_sales()}
 
+@app.get("/api/debug/list-telegram-gifts")
+async def debug_list_gifts():
+    """Вызовите один раз чтобы получить актуальные telegram_gift_id"""
+    try:
+        available = await bot.get_available_gifts()
+        gifts = []
+        for tg in available.gifts:
+            # Получаем URL стикера
+            sticker_url = None
+            sticker_type = None
+            try:
+                file = await bot.get_file(tg.sticker.file_id)
+                sticker_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+                sticker_type = file.file_path.split('.')[-1] if file.file_path else None
+            except:
+                pass
+            
+            gifts.append({
+                "telegram_gift_id": tg.id,
+                "price": tg.star_count,
+                "sticker_url": sticker_url,
+                "sticker_type": sticker_type,
+                "is_limited": tg.total_count is not None,
+                "total_count": tg.total_count,
+                "remaining_count": tg.remaining_count,
+            })
+        
+        # Сортируем по цене
+        gifts.sort(key=lambda x: (x["price"], x["telegram_gift_id"]))
+        
+        return {
+            "count": len(gifts),
+            "gifts": gifts,
+            "hint": "Скопируйте telegram_gift_id в HARDCODED_GIFTS"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/api/get-cases")
 async def api_get_cases():
