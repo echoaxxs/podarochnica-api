@@ -1099,6 +1099,56 @@ async def api_get_user_data(req: InitDataReq):
     }
 
 
+@app.get("/api/sticker/{gift_id}")
+async def get_sticker_proxy(gift_id: str):
+    """Проксирует TGS стикер и отдаёт распакованный Lottie JSON"""
+    gift = GIFTS.get(gift_id)
+    if not gift or not gift.get("sticker_url"):
+        raise HTTPException(404, "Not found")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(gift["sticker_url"], timeout=10)
+            if resp.status_code != 200:
+                raise HTTPException(502, "Failed to fetch sticker")
+            
+            data = resp.content
+            
+            # TGS = gzipped Lottie JSON, распаковываем
+            if gift.get("sticker_type") == "tgs":
+                import gzip
+                try:
+                    data = gzip.decompress(data)
+                except:
+                    pass  # Может уже распакован
+                
+                from fastapi.responses import Response
+                return Response(
+                    content=data,
+                    media_type="application/json",
+                    headers={
+                        "Access-Control-Allow-Origin": "*",
+                        "Cache-Control": "public, max-age=86400",
+                    }
+                )
+            
+            # Для других типов отдаём как есть
+            from fastapi.responses import Response
+            content_type = "image/webp" if gift.get("sticker_type") == "webp" else "video/webm"
+            return Response(
+                content=data,
+                media_type=content_type,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "public, max-age=86400",
+                }
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Sticker proxy error: {e}")
+        raise HTTPException(502, "Proxy error")
+
 @app.get("/api/get-gifts")
 async def api_get_gifts():
     gifts = []
